@@ -1,2 +1,3 @@
 locate "username" and type "test@test.com"
-locate "password" and type "Password123! jal"
+locate "password" and type "   Password 123! fht     jal"
+locate "table" and read-to myVariable

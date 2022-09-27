@@ -1,5 +1,4 @@
-//! The purpose of the scanner is to transform a list of characters into a list of tokens.
-
+/// Represents all the types of Schnauzer UI tokens.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Commands
@@ -11,6 +10,7 @@ pub enum TokenType {
     TryAgain,
     Screenshot,
     HadError,
+    ReadTo,
 
     // Literals
     String(String),
@@ -20,94 +20,164 @@ pub enum TokenType {
     Then,
     And,
 
-
     // Variable
     Variable(String),
 
     // EOF
-    Eof
+    Eof,
 }
 
+/// Represents a Schnauzer UI Token
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
+    /// The type of the Token
     pub token_type: TokenType,
-    pub line: usize
+
+    /// The line the token was found on (for error reporting)
+    pub line: usize,
 }
 
+/// The purpose of the scanner is to transform a list of characters into a list of tokens.
+/// # Example
+/// ```
+/// use schnauzer_ui::scanner::*;
+///
+/// let src = "locate \"username\" and type \"test@test.com\"";
+/// let tokens: Vec<Token> = Scanner::new(src.to_owned()).scan();
+/// ```
 pub struct Scanner {
+    /// The source code as a String
     src: String,
+
+    /// A buffer for collecting tokens as we scan the source code.
     tokens: Vec<Token>,
+
+    /// The current line number in the source code.
     line: usize,
+
+    /// Used to collect the pieces of a string literal that may have been split by whitespace
+    string_literal_buffer: String,
+
+    /// Keeps track of whether we are currently scanning between quotes
+    in_quotes: bool,
 }
 
-impl Scanner { 
+impl Scanner {
     pub fn new(src: String) -> Self {
         Self {
             src,
             tokens: vec![],
             line: 0,
+            string_literal_buffer: String::new(),
+            in_quotes: false,
         }
     }
 
+    /// Produces a vector of tokens from the provided source code.
     pub fn scan(&mut self) -> Vec<Token> {
-        for line in self.src.lines() {
+        // Process a line at a time
+        for stmt in self.src.clone().lines() {
+            // Increment tracking for the current line of the source code
             self.line += 1;
 
-            // Replace whitespace between quotes with ~
-            let mut buf = String::new();
-            let mut currently_between_quotes = false;
-            for c in line.chars() {
-                if c == '"' {
-                    currently_between_quotes = !currently_between_quotes;
+            for item in stmt.split(' ') {
+                if let Some(token) = self.resolve_token(item) {
+                    self.tokens.push(token);
                 }
-
-                if currently_between_quotes && c == ' ' { 
-                    buf.push('~');
-                } else {
-                    buf.push(c);
-                }
-            }
-            
-            for item in buf.split_whitespace() {
-                let token = self.resolve_token(item);
-                self.tokens.push(token);
             }
         }
 
+        // Add an end of file token
         self.tokens.push(self.token(TokenType::Eof));
         self.tokens.clone()
     }
 
-    pub fn resolve_token(&self, lexeme: &str) -> Token {
+    /// Takes a lexem (the string representation of a token) and tries to resolve it
+    /// to a Schnauzer UI token.
+    /// String literals are sometimes passed by the scan function in pieces (due to splitting on whitespace),
+    /// so the function returns None while it is in the process of rejoining those string literals.
+    pub fn resolve_token(&mut self, lexeme: &str) -> Option<Token> {
         match lexeme {
-            "locate" => self.token(TokenType::Locate),
-            "type" => self.token(TokenType::Type),
-            "click" => self.token(TokenType::Click),
-            "report" => self.token(TokenType::Report),
-            "refresh" => self.token(TokenType::Refresh),
-            "try-again" => self.token(TokenType::TryAgain),
-            "screenshot" => self.token(TokenType::Screenshot),
-            "had-error" => self.token(TokenType::HadError),
-            "if" => self.token(TokenType::If),
-            "then" => self.token(TokenType::Then),
-            "and" => self.token(TokenType::And),
-            word if word.starts_with("\"") && word.ends_with("\"") => {
+            // Commands
+            "locate" => Some(self.token(TokenType::Locate)),
+            "type" => Some(self.token(TokenType::Type)),
+            "click" => Some(self.token(TokenType::Click)),
+            "report" => Some(self.token(TokenType::Report)),
+            "refresh" => Some(self.token(TokenType::Refresh)),
+            "try-again" => Some(self.token(TokenType::TryAgain)),
+            "screenshot" => Some(self.token(TokenType::Screenshot)),
+            "had-error" => Some(self.token(TokenType::HadError)),
+            "if" => Some(self.token(TokenType::If)),
+            "then" => Some(self.token(TokenType::Then)),
+            "and" => Some(self.token(TokenType::And)),
+            "read-to" => Some(self.token(TokenType::ReadTo)),
 
-                // Strip quotes
-                let mut word: String = word.chars().skip(1).take(word.len() - 2).collect();
-
-                // Re-add the previously removed whitespace
-                word = word.replace("~", " ");
-
-                // Returna string token
-                let tt = TokenType::String(word);
-                self.token(tt)
+            // If we get an entire string literal, stript the quotes and construct the token
+            word if word.starts_with("\"") && word.ends_with("\"") && !self.in_quotes && word.len() > 1 => {
+                Some(
+                    self.token(TokenType::String(
+                        // Strip front and back quotes.
+                        // This unwrap is safe because we checked that the string began and ended with quotes in the match guard
+                        word.strip_prefix("\"")
+                            .unwrap()
+                            .strip_suffix("\"")
+                            .unwrap()
+                            .to_owned(),
+                    )),
+                )
             },
-            word => self.token(TokenType::Variable(word.to_owned()))
+
+            // If we get the first part of a string, switch to string literal building mode
+            word if word.starts_with("\"") && !self.in_quotes => {
+                self.in_quotes = true;
+
+                // Strip the front quote.
+                // This unwrap is safe because we checked the string began with a quote in the match guard,
+                let without_prefix_quote = word.to_owned().strip_prefix("\"").unwrap().to_owned();
+
+                // Add the beginning of the literal to the buffer.
+                self.string_literal_buffer.push_str(&without_prefix_quote);
+
+                // Add back the whitespace to the string
+                self.string_literal_buffer.push(' ');
+
+                None
+            }
+
+            // If we get the last part of the string literal
+            word if word.ends_with("\"") && self.in_quotes => {
+                self.in_quotes = false;
+
+                // Strip the end quote
+                // This unwrap is safe because we check that word ends in a quote in the match guard.
+                let without_end_quote = word.to_owned().strip_suffix("\"").unwrap().to_owned();
+
+                // Add the end of the literal to the string literal buffer.
+                self.string_literal_buffer.push_str(&without_end_quote);
+
+                // Clear the buffer and return the string literal
+                let res = self.string_literal_buffer.clone();
+                self.string_literal_buffer.clear();
+                Some(self.token(TokenType::String(res)))
+            }
+
+            // If we get part of the middle of the string literal
+            word if self.in_quotes => {
+                // Add the part to the string literal buffer
+                self.string_literal_buffer.push_str(word);
+                // add the whitespace back
+                self.string_literal_buffer.push(' ');
+                None
+            }
+            word => Some(self.token(TokenType::Variable(word.to_owned()))),
         }
     }
 
+    // Produce a token with the given scanning context.
     pub fn token(&self, tt: TokenType) -> Token {
-        Token { token_type: tt, line: self.line }
+        Token {
+            token_type: tt,
+            line: self.line,
+        }
     }
 }
