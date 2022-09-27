@@ -1,0 +1,16 @@
+[package]
+name = "schnauzerUI"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+name = "schnauzer_ui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "command_line_runner"
+path = "src/bin/cli.rs"
+
+[dependencies]
+thirtyfour = "0.31.0"
