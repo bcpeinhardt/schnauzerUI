@@ -1,11 +1,12 @@
+use parser::Parser;
 use scanner::{Scanner, Token};
 
 pub mod scanner;
+pub mod parser;
 
 pub fn run(code: String) {
-    let mut scanner = Scanner::new(code);
-    let tokens: Vec<Token> = scanner.scan();
-    for token in tokens.iter() {
-        println!("{:?}", token);
-    }
+    let mut scanner = Scanner::from_src(code);
+    let tokens = scanner.scan();
+    let ast = Parser::new().parse(tokens);
+    println!("{:?}", ast);
 }

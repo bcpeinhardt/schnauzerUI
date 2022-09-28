@@ -1,5 +1,5 @@
 /// Represents all the types of Schnauzer UI tokens.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
     // Commands
     Locate,
@@ -13,7 +13,7 @@ pub enum TokenType {
     ReadTo,
 
     // Literals
-    String(String),
+    String,
 
     // Combinators
     If,
@@ -21,10 +21,11 @@ pub enum TokenType {
     And,
 
     // Variable
-    Variable(String),
+    Variable,
 
-    // EOF
+    // EOF and EOL
     Eof,
+    Eol
 }
 
 /// Represents a Schnauzer UI Token
@@ -35,6 +36,10 @@ pub struct Token {
 
     /// The line the token was found on (for error reporting)
     pub line: usize,
+
+    pub string_literal: Option<String>,
+
+    pub variable_name: Option<String>,
 }
 
 /// The purpose of the scanner is to transform a list of characters into a list of tokens.
@@ -43,7 +48,7 @@ pub struct Token {
 /// use schnauzer_ui::scanner::*;
 ///
 /// let src = "locate \"username\" and type \"test@test.com\"";
-/// let tokens: Vec<Token> = Scanner::new(src.to_owned()).scan();
+/// let tokens: Vec<Token> = Scanner::from_src(src.to_owned()).scan();
 /// ```
 pub struct Scanner {
     /// The source code as a String
@@ -63,7 +68,9 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn new(src: String) -> Self {
+
+    /// Constructor
+    pub fn from_src(src: String) -> Self {
         Self {
             src,
             tokens: vec![],
@@ -85,6 +92,8 @@ impl Scanner {
                     self.tokens.push(token);
                 }
             }
+
+            self.tokens.push(self.token(TokenType::Eol));
         }
 
         // Add an end of file token
@@ -115,15 +124,11 @@ impl Scanner {
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"") && word.ends_with("\"") && !self.in_quotes && word.len() > 1 => {
                 Some(
-                    self.token(TokenType::String(
-                        // Strip front and back quotes.
-                        // This unwrap is safe because we checked that the string began and ended with quotes in the match guard
-                        word.strip_prefix("\"")
-                            .unwrap()
-                            .strip_suffix("\"")
-                            .unwrap()
-                            .to_owned(),
-                    )),
+                    self.string_literal_token(word.strip_prefix("\"")
+                    .unwrap()
+                    .strip_suffix("\"")
+                    .unwrap()
+                    .to_owned()),
                 )
             },
 
@@ -158,7 +163,7 @@ impl Scanner {
                 // Clear the buffer and return the string literal
                 let res = self.string_literal_buffer.clone();
                 self.string_literal_buffer.clear();
-                Some(self.token(TokenType::String(res)))
+                Some(self.string_literal_token(res))
             }
 
             // If we get part of the middle of the string literal
@@ -169,15 +174,34 @@ impl Scanner {
                 self.string_literal_buffer.push(' ');
                 None
             }
-            word => Some(self.token(TokenType::Variable(word.to_owned()))),
+            word => Some(self.variable_token(word.to_owned())),
         }
     }
 
-    // Produce a token with the given scanning context.
-    pub fn token(&self, tt: TokenType) -> Token {
+    fn string_literal_token(&self, string_literal: String) -> Token {
+        Token {
+            token_type: TokenType::String,
+            line: self.line,
+            string_literal: Some(string_literal),
+            variable_name: None
+        }
+    }
+
+    fn variable_token(&self, variable_name: String) -> Token {
+        Token {
+            token_type: TokenType::Variable,
+            line: self.line,
+            string_literal: None,
+            variable_name: Some(variable_name)
+        }
+    }
+
+    fn token(&self, tt: TokenType) -> Token {
         Token {
             token_type: tt,
             line: self.line,
+            string_literal: None,
+            variable_name: None
         }
     }
 }
