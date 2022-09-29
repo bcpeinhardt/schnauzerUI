@@ -1,5 +1,5 @@
 /// Represents all the types of Schnauzer UI tokens.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum TokenType {
     // Commands
     Locate,
@@ -12,20 +12,28 @@ pub enum TokenType {
     HadError,
     ReadTo,
 
-    // Literals
-    String,
+    // Literals (the associated string is the string literal)
+    String(String),
 
     // Combinators
     If,
     Then,
     And,
 
-    // Variable
-    Variable,
+    // Variable (the associated string is the variable name)
+    Variable(String),
+    Save,
+    As,
 
     // EOF and EOL
     Eof,
-    Eol
+    Eol,
+}
+
+impl PartialEq for TokenType {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
 }
 
 /// Represents a Schnauzer UI Token
@@ -36,10 +44,42 @@ pub struct Token {
 
     /// The line the token was found on (for error reporting)
     pub line: usize,
+}
 
-    pub string_literal: Option<String>,
+impl std::fmt::Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let lexeme = match self {
+            TokenType::Locate => "locate",
+            TokenType::Type => "type",
+            TokenType::Click => "click",
+            TokenType::Report => "report",
+            TokenType::Refresh => "refresh",
+            TokenType::TryAgain => "try-again",
+            TokenType::Screenshot => "screenshot",
+            TokenType::HadError => "had-error",
+            TokenType::ReadTo => "read-to",
+            TokenType::String(s) => s,
+            TokenType::If => "if",
+            TokenType::Then => "then",
+            TokenType::And => "and",
+            TokenType::Variable(v) => v,
+            TokenType::Eof => "eof",
+            TokenType::Eol => "eol",
+            TokenType::Save => "save",
+            TokenType::As => "as",
+        };
 
-    pub variable_name: Option<String>,
+        write!(f, "{}", lexeme)
+    }
+}
+
+impl Token {
+    pub fn error(&self, msg: impl std::fmt::Display) -> String {
+        format!(
+            "[Line {}]: Error at {}: {}",
+            self.line, self.token_type, msg
+        )
+    }
 }
 
 /// The purpose of the scanner is to transform a list of characters into a list of tokens.
@@ -68,7 +108,6 @@ pub struct Scanner {
 }
 
 impl Scanner {
-
     /// Constructor
     pub fn from_src(src: String) -> Self {
         Self {
@@ -86,6 +125,11 @@ impl Scanner {
         for stmt in self.src.clone().lines() {
             // Increment tracking for the current line of the source code
             self.line += 1;
+
+            // Skip the line if it's a comment or just whitespace
+            if stmt.starts_with("#") || stmt.trim().is_empty() {
+                continue;
+            }
 
             for item in stmt.split(' ') {
                 if let Some(token) = self.resolve_token(item) {
@@ -120,17 +164,25 @@ impl Scanner {
             "then" => Some(self.token(TokenType::Then)),
             "and" => Some(self.token(TokenType::And)),
             "read-to" => Some(self.token(TokenType::ReadTo)),
+            "save" => Some(self.token(TokenType::Save)),
+            "as" => Some(self.token(TokenType::As)),
 
             // If we get an entire string literal, stript the quotes and construct the token
-            word if word.starts_with("\"") && word.ends_with("\"") && !self.in_quotes && word.len() > 1 => {
-                Some(
-                    self.string_literal_token(word.strip_prefix("\"")
+            word if word.starts_with("\"")
+                && word.ends_with("\"")
+                && !self.in_quotes
+                && word.len() > 1 =>
+            {
+                // Strip the quotes
+                let word = word
+                    .strip_prefix("\"")
                     .unwrap()
                     .strip_suffix("\"")
                     .unwrap()
-                    .to_owned()),
-                )
-            },
+                    .to_owned();
+
+                Some(self.token(TokenType::String(word)))
+            }
 
             // If we get the first part of a string, switch to string literal building mode
             word if word.starts_with("\"") && !self.in_quotes => {
@@ -163,7 +215,7 @@ impl Scanner {
                 // Clear the buffer and return the string literal
                 let res = self.string_literal_buffer.clone();
                 self.string_literal_buffer.clear();
-                Some(self.string_literal_token(res))
+                Some(self.token(TokenType::String(res)))
             }
 
             // If we get part of the middle of the string literal
@@ -174,25 +226,7 @@ impl Scanner {
                 self.string_literal_buffer.push(' ');
                 None
             }
-            word => Some(self.variable_token(word.to_owned())),
-        }
-    }
-
-    fn string_literal_token(&self, string_literal: String) -> Token {
-        Token {
-            token_type: TokenType::String,
-            line: self.line,
-            string_literal: Some(string_literal),
-            variable_name: None
-        }
-    }
-
-    fn variable_token(&self, variable_name: String) -> Token {
-        Token {
-            token_type: TokenType::Variable,
-            line: self.line,
-            string_literal: None,
-            variable_name: Some(variable_name)
+            word => Some(self.token(TokenType::Variable(word.to_owned()))),
         }
     }
 
@@ -200,8 +234,6 @@ impl Scanner {
         Token {
             token_type: tt,
             line: self.line,
-            string_literal: None,
-            variable_name: None
         }
     }
 }

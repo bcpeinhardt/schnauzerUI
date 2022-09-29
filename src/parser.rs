@@ -1,27 +1,76 @@
 use crate::scanner::{Token, TokenType};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Stmt {
+pub enum Stmt {
+    Cmd(CmdStmt),
+    If(IfStmt),
+    SetVariable(SetVariableStmt),
+}
+
+impl std::fmt::Display for Stmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Stmt::Cmd(cs) => write!(f, "{}", cs),
+            Stmt::If(is) => write!(f, "{}", is),
+            Stmt::SetVariable(sv) => write!(f, "{}", sv),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SetVariableStmt {
+    variable_name: String,
+    value: String,
+}
+
+impl std::fmt::Display for SetVariableStmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "save {} as {}", self.variable_name, self.value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfStmt {
+    condition: Cmd,
+    then_branch: CmdStmt
+}
+
+impl std::fmt::Display for IfStmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "if {} then {}", self.condition, self.then_branch)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CmdStmt {
     pub lhs: Cmd,
-    pub rhs: Option<(Token, Box<Stmt>)>
+    pub rhs: Option<(Token, Box<CmdStmt>)>,
+}
+
+impl std::fmt::Display for CmdStmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.rhs {
+            Some((_, stmt)) => write!(f, "{} and {}", self.lhs, stmt),
+            None => write!(f, "{}", self.lhs),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Cmd {
-
     /// Command for resolving a locator to a web element.
     /// The associated string is the provided locator argument.
-    Locate(Token),
+    Locate(CmdParam),
 
     /// Command for typing text into some web element.
     /// The associated string is the provided text.
-    Type(Token),
+    Type(CmdParam),
 
     /// Command for clicking a web element.
     Click,
 
     /// Command for printing to a report log.
-    Report(Token),
+    Report(CmdParam),
 
     /// Command for refreshing the WebDriver.
     Refresh,
@@ -37,105 +86,225 @@ pub enum Cmd {
 
     /// Command for reading the text of a webelemnt to a variable
     /// Associated string is the variable name
-    ReadTo(Token),
+    ReadTo(CmdParam),
+    
+}
+
+impl std::fmt::Display for Cmd {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Cmd::Locate(cp) => write!(f, "locate {}", cp),
+            Cmd::Type(cp) => write!(f, "type {}", cp),
+            Cmd::Click => write!(f, "click"),
+            Cmd::Report(cp) => write!(f, "report {}", cp),
+            Cmd::Refresh => write!(f, "refresh"),
+            Cmd::TryAgain => write!(f, "try-again"),
+            Cmd::Screenshot => write!(f, "screenshot"),
+            Cmd::HadError => write!(f, "had-error"),
+            Cmd::ReadTo(cp) => write!(f, "read-to {}", cp),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CmdParam {
+    String(String),
+    Variable(String)
+}
+
+impl std::fmt::Display for CmdParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CmdParam::String(s) => write!(f, "\"{}\"", s),
+            CmdParam::Variable(v) => write!(f, "{}", v),
+        }
+    }
 }
 
 pub struct Parser {
     stmts: Vec<Stmt>,
     curr_line: Vec<Token>,
-    curr_token: usize,
+    index: usize,
 }
 
 impl Parser {
-
     pub fn new() -> Self {
         Self {
             stmts: vec![],
             curr_line: vec![],
-            curr_token: 0
+            index: 0,
         }
     }
 
     pub fn parse(&mut self, tokens: Vec<Token>) -> Vec<Stmt> {
+        // A token list passed to the parse should always end in an Eof token.
+        // The unwrap is safe because we checked the len > 0.
+        assert!(tokens.len() > 0 && tokens.last().unwrap().token_type == TokenType::Eof);
+
         for line in tokens.split(|t| t.token_type == TokenType::Eol) {
             self.curr_line = line.to_vec();
-            if self.curr_line.get(self.curr_token).unwrap().token_type == TokenType::Eol { 
+            if self.current_token().unwrap().token_type == TokenType::Eof {
                 break;
             }
             match self.parse_stmt() {
                 Ok(stmt) => self.stmts.push(stmt),
-                Err(e) => { eprintln!("Whoah there partner!") }
+                Err(e) => {
+                    eprintln!("{}", e)
+                }
             }
-            self.curr_token = 0;
+            self.index = 0;
         }
         let stmts = self.stmts.clone();
         self.stmts.clear();
         stmts
     }
 
-    /// Parses a statement
-    /// locate "Submit" and click
-    pub fn parse_stmt(&mut self) -> Result<Stmt, ()> {
-        let lhs = self.parse_cmd()?;
-        if let Some(and_token) = self.advance_on(TokenType::And) {
-            let rhs = self.parse_stmt()?;
-            Ok(Stmt { lhs, rhs: Some((and_token, Box::new(rhs))) })
+    pub fn parse_stmt(&mut self) -> Result<Stmt, String> { 
+        if self.advance_on(TokenType::If).is_some() {
+            self.parse_if_stmt().map(|is| Stmt::If(is))
+        } else if self.advance_on(TokenType::Save).is_some() {
+            let variable_name = self.advance_on(TokenType::Variable("n/a".to_owned())).ok_or(self.error("Expected a variable name"))?;
+            let as_token = self.advance_on(TokenType::As).ok_or(self.error("Expected `as`"))?;
+            let value = self.advance_on(TokenType::String("n/a".to_owned())).ok_or(self.error("Expected some txt"))?;
+            
+            match (variable_name, value) {
+                (Token { token_type: TokenType::Variable(variable_name), ..}, Token { token_type: TokenType::String(value), .. }) => Ok(Stmt::SetVariable(SetVariableStmt { variable_name, value})),
+                _ => Err(self.error("Error"))
+            }
         } else {
-            Ok(Stmt { lhs, rhs: None })
+            self.parse_cmd_stmt().map(|cs| Stmt::Cmd(cs))
         }
     }
 
-    pub fn parse_cmd(&mut self) -> Result<Cmd, ()> {
-        if let Some(_) = self.advance_on(TokenType::Locate) {
-            let locator = self.advance_on_or_err(TokenType::String)?;
-            Ok(Cmd::Locate(locator))
-        } else if let Some(_) = self.advance_on(TokenType::Type) {
-            let txt = self.advance_on_or_err(TokenType::String)?;
-            Ok(Cmd::Type(txt))
-        }else if let Some(_) = self.advance_on(TokenType::Report) {
-            let log_msg = self.advance_on_or_err(TokenType::String)?;
-            Ok(Cmd::Report(log_msg))
-        } else if let Some(_) = self.advance_on(TokenType::ReadTo){
-            let var = self.advance_on_or_err(TokenType::Variable)?;
-            Ok(Cmd::ReadTo(var))
-        } else if let Some(token) = self.advance_on_any() {
+    pub fn parse_if_stmt(&mut self) -> Result<IfStmt, String> { 
+        let condition = self.parse_cmd()?;
+        let then_token = self.advance_on(TokenType::Then).ok_or(self.error("Expected keyword `then`"))?;
+        let then_branch = self.parse_cmd_stmt()?;
+        Ok(IfStmt { condition, then_branch })
+    }
+
+    /// Parses a statement
+    /// locate "Submit" and click
+    pub fn parse_cmd_stmt(&mut self) -> Result<CmdStmt, String> {
+        let lhs = self.parse_cmd()?;
+        if let Some(and_token) = self.advance_on(TokenType::And) {
+            let rhs = self.parse_cmd_stmt()?;
+            Ok(CmdStmt {
+                lhs,
+                rhs: Some((and_token, Box::new(rhs))),
+            })
+        } else {
+            Ok(CmdStmt { lhs, rhs: None })
+        }
+    }
+
+    pub fn parse_cmd(&mut self) -> Result<Cmd, String> {
+
+        if self.advance_on(TokenType::Locate).is_some() {
+
+            // Try to advance on a string
+            let locator = self
+                .advance_on(TokenType::String("n/a".to_owned()));
+
+            // Try to advance on a variable
+            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
+
+            match (locator, variable) {
+                (Some(Token { token_type: TokenType::String(s), .. }), _) => Ok(Cmd::Locate(CmdParam::String(s))),
+                (_, Some(Token { token_type: TokenType::Variable(v), ..})) => Ok(Cmd::Locate(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text."))
+            }
+
+            
+        } else if self.advance_on(TokenType::Type).is_some() {
+            
+            // Try to advance on a string
+            let txt = self
+                .advance_on(TokenType::String("n/a".to_owned()));
+
+            // Try to advance on a variable
+            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
+
+            match (txt, variable) {
+                (Some(Token { token_type: TokenType::String(s), .. }), _) => Ok(Cmd::Type(CmdParam::String(s))),
+                (_, Some(Token { token_type: TokenType::Variable(v), ..})) => Ok(Cmd::Type(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text."))
+            }
+        } else if self.advance_on(TokenType::Report).is_some() {
+            
+            // Try to advance on a string
+            let msg = self
+                .advance_on(TokenType::String("n/a".to_owned()));
+
+            // Try to advance on a variable
+            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
+
+            match (msg, variable) {
+                (Some(Token { token_type: TokenType::String(s), .. }), _) => Ok(Cmd::Report(CmdParam::String(s))),
+                (_, Some(Token { token_type: TokenType::Variable(v), ..})) => Ok(Cmd::Report(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text."))
+            }
+        } else if self.advance_on(TokenType::ReadTo).is_some() {
+            let var = self
+                .advance_on(TokenType::Variable("n/a".to_owned()))
+                .ok_or(self.error("Expected Variable"))?;
+
+            match var {
+                Token { token_type: TokenType::Variable(v), ..} => Ok(Cmd::ReadTo(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected Variable"))
+            }
+        } else {
+            let token = self.advance_on_any();
             match token.token_type {
                 TokenType::Click => Ok(Cmd::Click),
                 TokenType::Refresh => Ok(Cmd::Refresh),
                 TokenType::TryAgain => Ok(Cmd::TryAgain),
                 TokenType::Screenshot => Ok(Cmd::Screenshot),
                 TokenType::HadError => Ok(Cmd::HadError),
-                _ => {
-                    Err(())
-                }
+                _ => Err(token.error("Expected command")),
             }
-        } else {
-            Err(())
         }
-    } 
+    }
 
     fn advance_on(&mut self, tt: TokenType) -> Option<Token> {
-        if let Some(token) = self.curr_line.get(self.curr_token) {
+        if let Some(token) = self.current_token() {
             if token.token_type == tt {
-                self.curr_token += 1;
-                return Some(token.clone());
+                self.index += 1;
+                return Some(token);
             }
         }
         None
     }
 
-    fn advance_on_any(&mut self) -> Option<Token> {
-        self.curr_token += 1;
-        self.curr_line.get(self.curr_token - 1).map(|t| t.clone())
-    }
-
-    fn advance_on_or_err(&mut self, tt: TokenType) -> Result<Token, ()> {
-        if let Some(token) = self.curr_line.get(self.curr_token) {
-            if token.token_type == tt {
-                self.curr_token += 1;
-                return Ok(token.clone());
+    fn advance_on_any_of(&mut self, tts: Vec<TokenType>) -> Option<Token> {
+        for tt in tts.into_iter() { 
+            if let Some(t) = self.advance_on(tt) {
+                return Some(t);
             }
         }
-        Err(())
+        None
+    }
+
+    fn advance_on_any(&mut self) -> Token {
+        self.index += 1;
+        self.curr_line
+            .get(self.index - 1)
+            .map(|t| t.clone())
+            .unwrap()
+    }
+
+    fn error(&self, msg: &str) -> String {
+        self.current_token()
+            .map(|t| t.error(msg))
+            .unwrap_or(self.previous_token().error(msg))
+    }
+
+    fn current_token(&self) -> Option<Token> {
+        self.curr_line.get(self.index).map(|t| t.clone())
+    }
+
+    /// # Panics
+    fn previous_token(&self) -> Token {
+        self.curr_line.get(self.index - 1).unwrap().clone()
     }
 }
