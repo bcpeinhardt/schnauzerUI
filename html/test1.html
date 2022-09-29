@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test basic form input and button click</title>
+  </head>
+  <body>
+    <h1>Test basic form input and button click</h1>
+    <form>
+      <!-- Find an input by it's label -->
+      <label>Username</label>
+      <input type="email" name="user-name" id="username" />
+
+      <!-- Find an input by it's placeholder -->
+      <input
+        type="password"
+        name="pass-word"
+        id="password"
+        placeholder="Password"
+      />
+
+      <!-- Find an input by it's text -->
+      <button id="btn">Submit</button>
+    </form>
+
+    <script>
+        let btn = document.querySelector("#btn");
+        btn.addEventListener("click", function (event) {
+          event.preventDefault();
+          console.log("Btn clicked!");
+        });
+      </script>
+  </body>
+</html>

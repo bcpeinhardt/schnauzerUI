@@ -1,11 +1,6 @@
 
-# Fill in username
-locate "username" and type "test@test.com"
+# Navigate to wikipedia
+url https://www.wikipedia.org/
 
-# Fill in password
-locate "password" and type "   Password 123! fht     jal"
+# Type in something to search
 
-if locate "username" then type "test@test.com"
-if had-error then report error-msg and refresh and try-again
-
-save myVariable as "some string value"
