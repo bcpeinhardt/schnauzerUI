@@ -1,15 +1,20 @@
-use parser::Parser;
-use scanner::{Scanner, Token};
-
+pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 
-pub fn run(code: String) {
+use interpreter::Interpreter;
+use parser::Parser;
+use scanner::{Scanner, Token};
+use thirtyfour::prelude::WebDriverResult;
+
+pub async fn run(code: String) -> WebDriverResult<()> {
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
 
     let stmts = Parser::new().parse(tokens);
-    for stmt in stmts.iter() {
-        println!("{}", stmt);
-    }
+
+    let mut interpreter = Interpreter::new().await?;
+    interpreter.interpret(stmts).await;
+
+    Ok(())
 }

@@ -5,6 +5,8 @@ pub enum Stmt {
     Cmd(CmdStmt),
     If(IfStmt),
     SetVariable(SetVariableStmt),
+    Comment(String),
+    CatchErr(CmdStmt)
 }
 
 impl std::fmt::Display for Stmt {
@@ -13,6 +15,9 @@ impl std::fmt::Display for Stmt {
             Stmt::Cmd(cs) => write!(f, "{}", cs),
             Stmt::If(is) => write!(f, "{}", is),
             Stmt::SetVariable(sv) => write!(f, "{}", sv),
+            Stmt::Comment(s) => write!(f, "{}", s),
+            Stmt::CatchErr(cs) => write!(f, "catch-error: {}", cs),
+            
         }
     }
 }
@@ -32,7 +37,7 @@ impl std::fmt::Display for SetVariableStmt {
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfStmt {
     condition: Cmd,
-    then_branch: CmdStmt
+    then_branch: CmdStmt,
 }
 
 impl std::fmt::Display for IfStmt {
@@ -69,9 +74,6 @@ pub enum Cmd {
     /// Command for clicking a web element.
     Click,
 
-    /// Command for printing to a report log.
-    Report(CmdParam),
-
     /// Command for refreshing the WebDriver.
     Refresh,
 
@@ -81,13 +83,11 @@ pub enum Cmd {
     /// Command for taking a screenshot
     Screenshot,
 
-    /// Command that evaluates to a boolean for if there is an unhandled error.
-    HadError,
-
     /// Command for reading the text of a webelemnt to a variable
     /// Associated string is the variable name
     ReadTo(CmdParam),
-    
+
+    Url(CmdParam),
 }
 
 impl std::fmt::Display for Cmd {
@@ -96,12 +96,11 @@ impl std::fmt::Display for Cmd {
             Cmd::Locate(cp) => write!(f, "locate {}", cp),
             Cmd::Type(cp) => write!(f, "type {}", cp),
             Cmd::Click => write!(f, "click"),
-            Cmd::Report(cp) => write!(f, "report {}", cp),
             Cmd::Refresh => write!(f, "refresh"),
             Cmd::TryAgain => write!(f, "try-again"),
             Cmd::Screenshot => write!(f, "screenshot"),
-            Cmd::HadError => write!(f, "had-error"),
             Cmd::ReadTo(cp) => write!(f, "read-to {}", cp),
+            Cmd::Url(cp) => write!(f, "url {}", cp),
         }
     }
 }
@@ -109,7 +108,7 @@ impl std::fmt::Display for Cmd {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CmdParam {
     String(String),
-    Variable(String)
+    Variable(String),
 }
 
 impl std::fmt::Display for CmdParam {
@@ -159,28 +158,56 @@ impl Parser {
         stmts
     }
 
-    pub fn parse_stmt(&mut self) -> Result<Stmt, String> { 
+    pub fn parse_stmt(&mut self) -> Result<Stmt, String> {
         if self.advance_on(TokenType::If).is_some() {
             self.parse_if_stmt().map(|is| Stmt::If(is))
+        } else if let Some(Token { token_type: TokenType::Comment(s), .. }) = self.advance_on(TokenType::Comment("n/a".to_owned())){
+            Ok(Stmt::Comment(s))
+        } else if self.advance_on(TokenType::CatchError).is_some() {
+            let stmt = self.parse_cmd_stmt()?;
+            Ok(Stmt::CatchErr(stmt))
         } else if self.advance_on(TokenType::Save).is_some() {
-            let variable_name = self.advance_on(TokenType::Variable("n/a".to_owned())).ok_or(self.error("Expected a variable name"))?;
-            let as_token = self.advance_on(TokenType::As).ok_or(self.error("Expected `as`"))?;
-            let value = self.advance_on(TokenType::String("n/a".to_owned())).ok_or(self.error("Expected some txt"))?;
-            
+            let variable_name = self
+                .advance_on(TokenType::Variable("n/a".to_owned()))
+                .ok_or(self.error("Expected a variable name"))?;
+            let as_token = self
+                .advance_on(TokenType::As)
+                .ok_or(self.error("Expected `as`"))?;
+            let value = self
+                .advance_on(TokenType::String("n/a".to_owned()))
+                .ok_or(self.error("Expected some txt"))?;
+
             match (variable_name, value) {
-                (Token { token_type: TokenType::Variable(variable_name), ..}, Token { token_type: TokenType::String(value), .. }) => Ok(Stmt::SetVariable(SetVariableStmt { variable_name, value})),
-                _ => Err(self.error("Error"))
+                (
+                    Token {
+                        token_type: TokenType::Variable(variable_name),
+                        ..
+                    },
+                    Token {
+                        token_type: TokenType::String(value),
+                        ..
+                    },
+                ) => Ok(Stmt::SetVariable(SetVariableStmt {
+                    variable_name,
+                    value,
+                })),
+                _ => Err(self.error("Error")),
             }
         } else {
             self.parse_cmd_stmt().map(|cs| Stmt::Cmd(cs))
         }
     }
 
-    pub fn parse_if_stmt(&mut self) -> Result<IfStmt, String> { 
+    pub fn parse_if_stmt(&mut self) -> Result<IfStmt, String> {
         let condition = self.parse_cmd()?;
-        let then_token = self.advance_on(TokenType::Then).ok_or(self.error("Expected keyword `then`"))?;
+        let then_token = self
+            .advance_on(TokenType::Then)
+            .ok_or(self.error("Expected keyword `then`"))?;
         let then_branch = self.parse_cmd_stmt()?;
-        Ok(IfStmt { condition, then_branch })
+        Ok(IfStmt {
+            condition,
+            then_branch,
+        })
     }
 
     /// Parses a statement
@@ -199,50 +226,53 @@ impl Parser {
     }
 
     pub fn parse_cmd(&mut self) -> Result<Cmd, String> {
-
         if self.advance_on(TokenType::Locate).is_some() {
-
             // Try to advance on a string
-            let locator = self
-                .advance_on(TokenType::String("n/a".to_owned()));
+            let locator = self.advance_on(TokenType::String("n/a".to_owned()));
 
             // Try to advance on a variable
             let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
 
             match (locator, variable) {
-                (Some(Token { token_type: TokenType::String(s), .. }), _) => Ok(Cmd::Locate(CmdParam::String(s))),
-                (_, Some(Token { token_type: TokenType::Variable(v), ..})) => Ok(Cmd::Locate(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text."))
+                (
+                    Some(Token {
+                        token_type: TokenType::String(s),
+                        ..
+                    }),
+                    _,
+                ) => Ok(Cmd::Locate(CmdParam::String(s))),
+                (
+                    _,
+                    Some(Token {
+                        token_type: TokenType::Variable(v),
+                        ..
+                    }),
+                ) => Ok(Cmd::Locate(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text.")),
             }
-
-            
         } else if self.advance_on(TokenType::Type).is_some() {
-            
             // Try to advance on a string
-            let txt = self
-                .advance_on(TokenType::String("n/a".to_owned()));
+            let txt = self.advance_on(TokenType::String("n/a".to_owned()));
 
             // Try to advance on a variable
             let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
 
             match (txt, variable) {
-                (Some(Token { token_type: TokenType::String(s), .. }), _) => Ok(Cmd::Type(CmdParam::String(s))),
-                (_, Some(Token { token_type: TokenType::Variable(v), ..})) => Ok(Cmd::Type(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text."))
-            }
-        } else if self.advance_on(TokenType::Report).is_some() {
-            
-            // Try to advance on a string
-            let msg = self
-                .advance_on(TokenType::String("n/a".to_owned()));
-
-            // Try to advance on a variable
-            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
-
-            match (msg, variable) {
-                (Some(Token { token_type: TokenType::String(s), .. }), _) => Ok(Cmd::Report(CmdParam::String(s))),
-                (_, Some(Token { token_type: TokenType::Variable(v), ..})) => Ok(Cmd::Report(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text."))
+                (
+                    Some(Token {
+                        token_type: TokenType::String(s),
+                        ..
+                    }),
+                    _,
+                ) => Ok(Cmd::Type(CmdParam::String(s))),
+                (
+                    _,
+                    Some(Token {
+                        token_type: TokenType::Variable(v),
+                        ..
+                    }),
+                ) => Ok(Cmd::Type(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text.")),
             }
         } else if self.advance_on(TokenType::ReadTo).is_some() {
             let var = self
@@ -250,8 +280,35 @@ impl Parser {
                 .ok_or(self.error("Expected Variable"))?;
 
             match var {
-                Token { token_type: TokenType::Variable(v), ..} => Ok(Cmd::ReadTo(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected Variable"))
+                Token {
+                    token_type: TokenType::Variable(v),
+                    ..
+                } => Ok(Cmd::ReadTo(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected Variable")),
+            }
+        } else if self.advance_on(TokenType::Url).is_some() {
+            // Try to advance on a string
+            let url = self.advance_on(TokenType::String("n/a".to_owned()));
+
+            // Try to advance on a variable
+            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
+
+            match (url, variable) {
+                (
+                    Some(Token {
+                        token_type: TokenType::String(s),
+                        ..
+                    }),
+                    _,
+                ) => Ok(Cmd::Url(CmdParam::String(s))),
+                (
+                    _,
+                    Some(Token {
+                        token_type: TokenType::Variable(v),
+                        ..
+                    }),
+                ) => Ok(Cmd::Url(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text.")),
             }
         } else {
             let token = self.advance_on_any();
@@ -260,7 +317,6 @@ impl Parser {
                 TokenType::Refresh => Ok(Cmd::Refresh),
                 TokenType::TryAgain => Ok(Cmd::TryAgain),
                 TokenType::Screenshot => Ok(Cmd::Screenshot),
-                TokenType::HadError => Ok(Cmd::HadError),
                 _ => Err(token.error("Expected command")),
             }
         }
@@ -277,7 +333,7 @@ impl Parser {
     }
 
     fn advance_on_any_of(&mut self, tts: Vec<TokenType>) -> Option<Token> {
-        for tt in tts.into_iter() { 
+        for tt in tts.into_iter() {
             if let Some(t) = self.advance_on(tt) {
                 return Some(t);
             }

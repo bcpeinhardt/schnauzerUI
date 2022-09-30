@@ -5,12 +5,12 @@ pub enum TokenType {
     Locate,
     Type,
     Click,
-    Report,
     Refresh,
     TryAgain,
     Screenshot,
-    HadError,
+    CatchError,
     ReadTo,
+    Url,
 
     // Literals (the associated string is the string literal)
     String(String),
@@ -24,6 +24,9 @@ pub enum TokenType {
     Variable(String),
     Save,
     As,
+
+    // Comment token
+    Comment(String),
 
     // EOF and EOL
     Eof,
@@ -52,11 +55,10 @@ impl std::fmt::Display for TokenType {
             TokenType::Locate => "locate",
             TokenType::Type => "type",
             TokenType::Click => "click",
-            TokenType::Report => "report",
             TokenType::Refresh => "refresh",
             TokenType::TryAgain => "try-again",
             TokenType::Screenshot => "screenshot",
-            TokenType::HadError => "had-error",
+            TokenType::CatchError => "catch-error:",
             TokenType::ReadTo => "read-to",
             TokenType::String(s) => s,
             TokenType::If => "if",
@@ -67,6 +69,8 @@ impl std::fmt::Display for TokenType {
             TokenType::Eol => "eol",
             TokenType::Save => "save",
             TokenType::As => "as",
+            TokenType::Url => "url",
+            TokenType::Comment(s) => s,
         };
 
         write!(f, "{}", lexeme)
@@ -126,12 +130,18 @@ impl Scanner {
             // Increment tracking for the current line of the source code
             self.line += 1;
 
-            // Skip the line if it's a comment or just whitespace
-            if stmt.starts_with("#") || stmt.trim().is_empty() {
+            // Skip whitespace
+            if stmt.trim().is_empty() {
                 continue;
             }
 
-            for item in stmt.split(' ') {
+            if stmt.trim().starts_with("#") {
+                self.tokens.push(self.token(TokenType::Comment(stmt.to_owned())));
+                self.tokens.push(self.token(TokenType::Eol));
+                continue;
+            }
+
+            for item in stmt.trim().split(' ') {
                 if let Some(token) = self.resolve_token(item) {
                     self.tokens.push(token);
                 }
@@ -155,17 +165,17 @@ impl Scanner {
             "locate" => Some(self.token(TokenType::Locate)),
             "type" => Some(self.token(TokenType::Type)),
             "click" => Some(self.token(TokenType::Click)),
-            "report" => Some(self.token(TokenType::Report)),
             "refresh" => Some(self.token(TokenType::Refresh)),
             "try-again" => Some(self.token(TokenType::TryAgain)),
             "screenshot" => Some(self.token(TokenType::Screenshot)),
-            "had-error" => Some(self.token(TokenType::HadError)),
+            "catch-error:" => Some(self.token(TokenType::CatchError)),
             "if" => Some(self.token(TokenType::If)),
             "then" => Some(self.token(TokenType::Then)),
             "and" => Some(self.token(TokenType::And)),
             "read-to" => Some(self.token(TokenType::ReadTo)),
             "save" => Some(self.token(TokenType::Save)),
             "as" => Some(self.token(TokenType::As)),
+            "url" => Some(self.token(TokenType::Url)),
 
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")

@@ -1,0 +1,6 @@
+[00:00:08.250] (117b0) INFO   # Navigate to the test url
+[00:00:08.382] (117b0) INFO   # Type in username (located by labels)
+[00:00:08.528] (117b0) INFO   # Type in password (located by placeholder)
+[00:00:23.638] (117b0) ERROR  Could not locate the element
+[00:00:23.675] (117b0) INFO   # Type in password (located by placeholder)
+[00:00:38.740] (117b0) ERROR  Could not locate the element

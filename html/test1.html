@@ -5,6 +5,16 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Test basic form input and button click</title>
+
+    <style>
+        .btn-blue {
+            background-color: aqua;
+        }
+
+        .btn-green {
+            background-color: chartreuse;
+        }
+    </style>
   </head>
   <body>
     <h1>Test basic form input and button click</h1>
@@ -15,21 +25,22 @@
 
       <!-- Find an input by it's placeholder -->
       <input
-        type="password"
+        type="text"
         name="pass-word"
         id="password"
         placeholder="Password"
       />
 
       <!-- Find an input by it's text -->
-      <button id="btn">Submit</button>
+      <button id="btn" class="btn-blue">Submit</button>
     </form>
 
     <script>
         let btn = document.querySelector("#btn");
         btn.addEventListener("click", function (event) {
           event.preventDefault();
-          console.log("Btn clicked!");
+          btn.classList.remove("btn-blue");
+          btn.classList.add("btn-green");
         });
       </script>
   </body>
