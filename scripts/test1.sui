@@ -10,10 +10,12 @@ catch-error: screenshot
 locate "Passwodr" and type "Password123!"
 
 # Click the submit button (located by element text)
-locate "Submit" and click and screenshot
+locate "Submit" and click 
+
+locate "Submit" and read-to btnTxt
 
 # Handle errors
-catch-error: refresh and try-again
+catch-error: screenshot and refresh and try-again
 
 
 

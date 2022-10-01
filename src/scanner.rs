@@ -136,7 +136,8 @@ impl Scanner {
             }
 
             if stmt.trim().starts_with("#") {
-                self.tokens.push(self.token(TokenType::Comment(stmt.to_owned())));
+                self.tokens
+                    .push(self.token(TokenType::Comment(stmt.to_owned())));
                 self.tokens.push(self.token(TokenType::Eol));
                 continue;
             }

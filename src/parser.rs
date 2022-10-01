@@ -6,7 +6,11 @@ pub enum Stmt {
     If(IfStmt),
     SetVariable(SetVariableStmt),
     Comment(String),
-    CatchErr(CmdStmt)
+    CatchErr(CmdStmt),
+
+    /// This statement is not meant to be parsed. It is added by the interpreter
+    /// as part of try-again logic.
+    SetTryAgainFieldToFalse
 }
 
 impl std::fmt::Display for Stmt {
@@ -17,15 +21,15 @@ impl std::fmt::Display for Stmt {
             Stmt::SetVariable(sv) => write!(f, "{}", sv),
             Stmt::Comment(s) => write!(f, "{}", s),
             Stmt::CatchErr(cs) => write!(f, "catch-error: {}", cs),
-            
+            Stmt::SetTryAgainFieldToFalse => write!(f, ""),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetVariableStmt {
-    variable_name: String,
-    value: String,
+    pub variable_name: String,
+    pub value: String,
 }
 
 impl std::fmt::Display for SetVariableStmt {
@@ -36,8 +40,8 @@ impl std::fmt::Display for SetVariableStmt {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfStmt {
-    condition: Cmd,
-    then_branch: CmdStmt,
+    pub condition: Cmd,
+    pub then_branch: CmdStmt,
 }
 
 impl std::fmt::Display for IfStmt {
@@ -85,7 +89,7 @@ pub enum Cmd {
 
     /// Command for reading the text of a webelemnt to a variable
     /// Associated string is the variable name
-    ReadTo(CmdParam),
+    ReadTo(String),
 
     Url(CmdParam),
 }
@@ -161,7 +165,11 @@ impl Parser {
     pub fn parse_stmt(&mut self) -> Result<Stmt, String> {
         if self.advance_on(TokenType::If).is_some() {
             self.parse_if_stmt().map(|is| Stmt::If(is))
-        } else if let Some(Token { token_type: TokenType::Comment(s), .. }) = self.advance_on(TokenType::Comment("n/a".to_owned())){
+        } else if let Some(Token {
+            token_type: TokenType::Comment(s),
+            ..
+        }) = self.advance_on(TokenType::Comment("n/a".to_owned()))
+        {
             Ok(Stmt::Comment(s))
         } else if self.advance_on(TokenType::CatchError).is_some() {
             let stmt = self.parse_cmd_stmt()?;
@@ -283,7 +291,7 @@ impl Parser {
                 Token {
                     token_type: TokenType::Variable(v),
                     ..
-                } => Ok(Cmd::ReadTo(CmdParam::Variable(v))),
+                } => Ok(Cmd::ReadTo(v)),
                 _ => Err(self.error("Expected Variable")),
             }
         } else if self.advance_on(TokenType::Url).is_some() {
