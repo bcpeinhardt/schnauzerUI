@@ -13,6 +13,6 @@ async fn main() {
             .expect("Failed to init logging");
         run(code).await.expect("Oh no!");
     } else {
-        println!("Usage: ./schui <filepath>");
+        println!("Usage: ./sui <filepath>");
     }
 }

@@ -86,7 +86,7 @@ impl Interpreter {
 
         // We completed the entire script.
         self.driver.close_window().await?;
-        Ok(false)
+        Ok(self.had_error)
     }
 
     /// Produces an error witht he appropriate severity based on

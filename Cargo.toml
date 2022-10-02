@@ -9,7 +9,7 @@ name = "schnauzer_ui"
 path = "src/lib.rs"
 
 [[bin]]
-name = "command_line_runner"
+name = "sui"
 path = "src/bin/cli.rs"
 
 [dependencies]
