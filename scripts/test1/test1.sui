@@ -1,0 +1,16 @@
+# Navigate to the test url
+url "http://localhost:1234/login.html"
+
+# Type in username (located by labels)
+locate "Username" and type "test@test.com"
+
+# Type in password (located by placeholder)
+locate "Password" and type "Password123!" and screenshot
+
+# Click the submit button (located by element text)
+locate "Submit" and click and screenshot
+
+
+
+
+

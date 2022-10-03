@@ -1,4 +1,4 @@
-use schnauzer_ui::run;
+use schnauzer_ui::run_no_log;
 
 #[tokio::test]
 async fn manually_set_locator_for_elem() {
@@ -10,7 +10,7 @@ async fn manually_set_locator_for_elem() {
     locate myPlaceholder and type "Found ya"
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
@@ -25,7 +25,7 @@ async fn read_locator_from_elem() {
     locate myPlaceholder and type "Found ya"
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }

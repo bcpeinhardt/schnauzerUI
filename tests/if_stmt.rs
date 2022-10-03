@@ -1,4 +1,4 @@
-use schnauzer_ui::run;
+use schnauzer_ui::run_no_log;
 
 #[tokio::test]
 pub async fn if_stmt() {
@@ -12,7 +12,7 @@ pub async fn if_stmt() {
     if locate "Type Here" then type "Woohoo"
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }

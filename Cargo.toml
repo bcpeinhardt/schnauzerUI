@@ -15,7 +15,8 @@ path = "src/bin/cli.rs"
 [dependencies]
 async-recursion = "1.0.0"
 chrono = "0.4.22"
-log = "0.4.17"
-simple-logging = "2.0.2"
+clap = { version = "4.0.8", features = ["derive"] }
+futures = "0.3.24"
 thirtyfour = "0.31.0"
 tokio = "1.21.2"
+walkdir = "2.3.2"

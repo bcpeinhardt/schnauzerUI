@@ -1,4 +1,4 @@
-use schnauzer_ui::run;
+use schnauzer_ui::run_no_log;
 
 #[tokio::test]
 async fn catch_error_does_not_get_stuck_in_loop() {
@@ -19,7 +19,7 @@ async fn catch_error_does_not_get_stuck_in_loop() {
     # Handle errors
     catch-error: screenshot and refresh and try-again"#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
 }
@@ -34,7 +34,7 @@ async fn good_test_does_not_error() {
     locate "Username" and type "test@test.com"
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
@@ -49,7 +49,7 @@ async fn exit_early_no_catch_error_stmt_correctly_indicates_early_return() {
     locate "Im not here" and type "test@test.com"
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
 }

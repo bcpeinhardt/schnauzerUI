@@ -1,22 +1,23 @@
 use std::time::Duration;
 
 use async_recursion::async_recursion;
-use log::{error, info};
 use thirtyfour::prelude::*;
 
-use crate::{parser::{Cmd, CmdParam, CmdStmt, Stmt, SetVariableStmt, IfStmt}, environment::Environment};
+use crate::{
+    environment::Environment,
+    parser::{Cmd, CmdParam, CmdStmt, IfStmt, SetVariableStmt, Stmt},
+};
 
 /// Represent the Severity of an error within the interpreter (i.e. how to respond to an error).
 /// On a Recoverable error, the script will go to the next catch-error: stmt.
 /// On an Exit error, the interpret method will early return.
 pub enum Severity {
     Exit,
-    Recoverable
+    Recoverable,
 }
 
-/// Type alias for errors in the interpreter. 
+/// Type alias for errors in the interpreter.
 pub type RuntimeResult<T, E> = Result<T, (E, Severity)>;
-
 
 /// The interpreter is responsible for executing Schnauzer UI stmts against a running selenium grid.
 pub struct Interpreter {
@@ -32,10 +33,6 @@ pub struct Interpreter {
     /// against this element.
     curr_elem: Option<WebElement>,
 
-    /// We maintain a count of screenshots taken during a test run for generating filenames for
-    /// said screenshots.
-    screenshot_counter: usize,
-
     /// The had error field tracks whether or not the script encountered an error, and is used to move between catch-error: statements.
     had_error: bool,
 
@@ -46,6 +43,10 @@ pub struct Interpreter {
     /// The tried again field stores whether or not we are in try-again mode. It is used to cause an early return
     /// in the case that we encounter an error while in try-again mode.
     tried_again: bool,
+
+    pub log_buffer: String,
+
+    pub screenshot_buffer: Vec<Vec<u8>>,
 }
 
 impl Interpreter {
@@ -60,30 +61,37 @@ impl Interpreter {
             stmts,
             environment: Environment::new(),
             curr_elem: None,
-            screenshot_counter: 1,
             had_error: false,
             stmts_since_last_error_handling: vec![],
             tried_again: false,
+            log_buffer: String::new(),
+            screenshot_buffer: vec![]
         })
+    }
+
+    fn log_cmd(&mut self, msg: &str) {
+        self.log_buffer.push_str(&format!("Info: {}", msg));
+        self.log_buffer.push_str("\n");
+    }
+
+    fn log_err(&mut self, msg: &str) {
+        self.log_buffer.push_str(&format!("Error: {}", msg));
+        self.log_buffer.push_str("\n");
     }
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
     pub async fn interpret(&mut self) -> WebDriverResult<bool> {
-
         while let Some(stmt) = self.stmts.pop() {
-
             match self.execute_stmt(stmt).await {
-                Ok(_) => { /* Just keep swimming */ },
-                Err((e, sev)) => {
-                    match sev {
-                        Severity::Exit => {
-                            self.driver.close_window().await?;
-                            return Ok(true);
-                        },
-                        Severity::Recoverable => {
-                            error!("{}", e);
-                            self.had_error = true;
-                        },
+                Ok(_) => { /* Just keep swimming */ }
+                Err((e, sev)) => match sev {
+                    Severity::Exit => {
+                        self.driver.close_window().await?;
+                        return Ok(true);
+                    }
+                    Severity::Recoverable => {
+                        self.log_err(&e);
+                        self.had_error = true;
                     }
                 },
             }
@@ -119,7 +127,8 @@ impl Interpreter {
     /// Returns a reference to the current element for performing operations on, or an
     /// error if there is no current element.
     fn get_curr_elem(&self) -> RuntimeResult<&WebElement, String> {
-        self.curr_elem.as_ref()
+        self.curr_elem
+            .as_ref()
             .ok_or(self.error("No element currently located. Try using the locate command"))
     }
 
@@ -137,10 +146,10 @@ impl Interpreter {
                 Stmt::SetVariable(sv) => {
                     self.set_variable(sv);
                     Ok(())
-                },
+                }
                 Stmt::Comment(s) => {
                     // Comments are simply added to the report log.
-                    info!("{}", s);
+                    self.log_cmd(&s);
                     Ok(())
                 }
                 Stmt::CatchErr(_) => {
@@ -155,7 +164,7 @@ impl Interpreter {
                     // so we go back to normal execution mode.
                     self.tried_again = false;
                     Ok(())
-                },
+                }
             }
         } else {
             // Syncronizing after an error.
@@ -178,13 +187,21 @@ impl Interpreter {
     }
 
     /// Sets the value of a variable.
-    pub fn set_variable(&mut self, SetVariableStmt { variable_name, value}: SetVariableStmt) {
+    pub fn set_variable(
+        &mut self,
+        SetVariableStmt {
+            variable_name,
+            value,
+        }: SetVariableStmt,
+    ) {
         self.environment.set_variable(variable_name, value);
     }
 
-    /// Tries to retrieve the value of a variable. 
+    /// Tries to retrieve the value of a variable.
     pub fn get_variable(&self, name: &str) -> RuntimeResult<String, String> {
-        self.environment.get_variable(name).ok_or(self.error("Variable is not yet defined"))
+        self.environment
+            .get_variable(name)
+            .ok_or(self.error("Variable is not yet defined"))
     }
 
     /// Takes a cmd_param and tries to resolve it to a string. If it's a user provided String literal, just
@@ -199,14 +216,19 @@ impl Interpreter {
 
     /// If the provided condition does not fail, executes the following cmd_stmt.
     /// Note: Our grammar does not accomodate nested if statements.
-    pub async fn execute_if_stmt(&mut self, IfStmt { condition, then_branch }: IfStmt) -> RuntimeResult<(), String> {
+    pub async fn execute_if_stmt(
+        &mut self,
+        IfStmt {
+            condition,
+            then_branch,
+        }: IfStmt,
+    ) -> RuntimeResult<(), String> {
         if self.execute_cmd(condition).await.is_ok() {
             self.execute_cmd_stmt(then_branch).await
         } else {
             Ok(())
         }
     }
-
 
     /// Execute each cmd until there are no more combining `and` tokens.
     /// Fail early if one command fails.
@@ -229,7 +251,7 @@ impl Interpreter {
             Cmd::TryAgain => {
                 self.try_again();
                 Ok(())
-            },
+            }
             Cmd::Screenshot => self.screenshot().await,
             Cmd::ReadTo(cp) => self.read_to(cp).await,
             Cmd::Url(url) => self.url_cmd(url).await,
@@ -238,29 +260,33 @@ impl Interpreter {
 
     /// Reads the text of the currently located element to a variable.
     pub async fn read_to(&mut self, name: String) -> RuntimeResult<(), String> {
-        let txt = self.get_curr_elem()?.text().await.map_err(|_| self.error("Error getting text from element"))?;
+        let txt = self
+            .get_curr_elem()?
+            .text()
+            .await
+            .map_err(|_| self.error("Error getting text from element"))?;
         self.environment.set_variable(name, txt);
         Ok(())
     }
 
-    /// Re-executes the commands since the last catch-error stmt. 
+    /// Re-executes the commands since the last catch-error stmt.
     pub fn try_again(&mut self) {
-        self.tried_again = true; 
+        self.tried_again = true;
         self.stmts.push(Stmt::SetTryAgainFieldToFalse);
-        self.stmts.append(&mut self.stmts_since_last_error_handling.clone());
+        self.stmts
+            .append(&mut self.stmts_since_last_error_handling.clone());
         self.stmts_since_last_error_handling.clear();
     }
 
     /// Takes a screenshot of the page.
     pub async fn screenshot(&mut self) -> RuntimeResult<(), String> {
-        let path_string = format!("./screenshot_{}.jpg", self.screenshot_counter);
-        info!("Screenshot: {}", path_string);
-        let path = std::path::Path::new(&path_string);
-        self.screenshot_counter += 1;
-        self.driver
-            .screenshot(path)
+        self.log_cmd(&format!("Taking a screenshot"));
+        let ss = self.driver
+            .screenshot_as_png()
             .await
-            .map_err(|_| self.error("Error taking screenshot."))
+            .map_err(|_| self.error("Error taking screenshot."))?;
+        self.screenshot_buffer.push(ss);
+        Ok(())
     }
 
     /// Refreshes the webpage
@@ -281,7 +307,7 @@ impl Interpreter {
             .await
             .map_err(|_| self.error("Error clicking element"))
     }
-    
+
     /// Tries to type into the current element
     pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> RuntimeResult<(), String> {
         let txt = self.resolve(cmd_param)?;
@@ -339,28 +365,52 @@ impl Interpreter {
                 return self.set_curr_elem(found_elem).await;
             }
 
-            // Try to find an element by it's id 
+            // Try to find an element by it's id
             if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().single().await {
                 return self.set_curr_elem(found_elem).await;
             }
 
             // Try to find an element by it's name
-            if let Ok(found_elem) = self.driver.query(By::Name(&locator)).nowait().single().await {
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::Name(&locator))
+                .nowait()
+                .single()
+                .await
+            {
                 return self.set_curr_elem(found_elem).await;
             }
 
-            // Try to find an element by it's title 
-            if let Ok(found_elem) = self.driver.query(By::XPath(&format!("//*[@title='{}']", locator))).nowait().single().await {
+            // Try to find an element by it's title
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::XPath(&format!("//*[@title='{}']", locator)))
+                .nowait()
+                .single()
+                .await
+            {
                 return self.set_curr_elem(found_elem).await;
             }
 
             // Try to find an element by it's class
-            if let Ok(found_elem) = self.driver.query(By::ClassName(&locator)).nowait().single().await {
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::ClassName(&locator))
+                .nowait()
+                .single()
+                .await
+            {
                 return self.set_curr_elem(found_elem).await;
             }
 
             // Try to find an element by xpath
-            if let Ok(found_elem) = self.driver.query(By::XPath(&locator)).nowait().single().await {
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::XPath(&locator))
+                .nowait()
+                .single()
+                .await
+            {
                 return self.set_curr_elem(found_elem).await;
             }
         }

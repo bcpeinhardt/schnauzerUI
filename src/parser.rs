@@ -10,7 +10,7 @@ pub enum Stmt {
 
     /// This statement is not meant to be parsed. It is added by the interpreter
     /// as part of try-again logic.
-    SetTryAgainFieldToFalse
+    SetTryAgainFieldToFalse,
 }
 
 impl std::fmt::Display for Stmt {

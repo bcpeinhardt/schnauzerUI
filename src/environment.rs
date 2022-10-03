@@ -7,11 +7,11 @@ impl Environment {
         Self(HashMap::new())
     }
 
-    pub fn set_variable(&mut self, name: String, value: String) { 
+    pub fn set_variable(&mut self, name: String, value: String) {
         self.0.insert(name, value);
     }
 
-    pub fn get_variable(&self, name: &str) -> Option<String> { 
-        self.0.get(name).map(|s| s.clone() )
+    pub fn get_variable(&self, name: &str) -> Option<String> {
+        self.0.get(name).map(|s| s.clone())
     }
 }

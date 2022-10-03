@@ -1,9 +1,9 @@
 //! Tests that correspond to example SchnauzerUI code provided in the readme.
 
-use schnauzer_ui::run;
+use schnauzer_ui::run_no_log;
 
 #[tokio::test]
-async fn basic_example() { 
+async fn basic_example() {
     let script = r#"
     url "http://localhost:1234/login.html"
 
@@ -17,13 +17,13 @@ async fn basic_example() {
     locate "Submit" and click
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
 
 #[tokio::test]
-async fn error_handling_example() { 
+async fn error_handling_example() {
     let script = r#"
     url "http://localhost:1234/login.html"
 
@@ -40,7 +40,7 @@ async fn error_handling_example() {
     catch-error: screenshot and refresh and try-again
     "#;
 
-    let result = run(script.to_owned()).await;
+    let result = run_no_log(script.to_owned()).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }

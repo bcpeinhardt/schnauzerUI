@@ -1,8 +1,0 @@
-[00:00:17.609] (10b28) INFO   # Navigate to the test url
-[00:00:17.726] (10b28) INFO   # Type in username (located by labels)
-[00:00:17.907] (10b28) INFO   # Type in password (located by placeholder)
-[00:00:33.034] (10b28) ERROR  Could not locate the element
-[00:00:33.034] (10b28) INFO   Screenshot: ./screenshot_1.jpg
-[00:00:33.125] (10b28) INFO   # Type in password (located by placeholder)
-[00:00:48.196] (10b28) ERROR  Could not locate the element
-[00:00:48.196] (10b28) INFO   Screenshot: ./screenshot_2.jpg
