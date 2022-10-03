@@ -65,6 +65,7 @@ impl std::fmt::Display for CmdStmt {
     }
 }
 
+/// TODO: Add new tab cmd.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Cmd {
     /// Command for resolving a locator to a web element.

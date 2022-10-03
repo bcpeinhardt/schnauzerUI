@@ -1,7 +1,7 @@
 use schnauzer_ui::run;
 
 #[tokio::test]
-async fn bad_test_errors() {
+async fn catch_error_does_not_get_stuck_in_loop() {
     let script = r#"# Navigate to the test url
     url "http://localhost:1234/login.html"
     
