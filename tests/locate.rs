@@ -1,7 +1,7 @@
 use schnauzer_ui::run_no_log;
 
 #[tokio::test]
-pub async fn if_stmt() {
+pub async fn locate() {
     let script = r#"
     url "http://localhost:1234/locate.html"
 

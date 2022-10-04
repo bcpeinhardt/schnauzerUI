@@ -1,0 +1,12 @@
+# Navigate to youtube
+url "https://youtube.com"
+
+# Type into the search bar
+locate "Search" and type "test1"
+
+# Click the search btn
+locate "search-icon-legacy" and click
+
+# Click the home btn
+locate "Home" and click
+

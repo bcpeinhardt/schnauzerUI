@@ -22,7 +22,7 @@ pub type RuntimeResult<T, E> = Result<T, (E, Severity)>;
 /// The interpreter is responsible for executing Schnauzer UI stmts against a running selenium grid.
 pub struct Interpreter {
     /// Each interpreter has it's own browser window for executing scripts
-    driver: WebDriver,
+    pub driver: WebDriver,
 
     /// The statements for the interpreter to execute
     stmts: Vec<Stmt>,
@@ -103,6 +103,7 @@ impl Interpreter {
         // Return whether or not we exited the program while inn error mode.
         Ok(self.had_error)
     }
+
 
     /// Produces an error with the appropriate severity based on
     /// whether we are currently trying to execute stmts again.
