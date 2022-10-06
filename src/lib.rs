@@ -99,12 +99,18 @@ pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 
+use std::{ffi::OsStr, path::PathBuf};
+
 use interpreter::Interpreter;
 use parser::Parser;
-use scanner::{Scanner, Token};
+use scanner::Scanner;
 use thirtyfour::prelude::WebDriverResult;
 
-pub async fn run(code: String, log_path: String) -> WebDriverResult<bool> {
+pub async fn run(
+    code: String,
+    mut output_path: PathBuf,
+    file_name: String,
+) -> WebDriverResult<bool> {
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
 
@@ -113,13 +119,17 @@ pub async fn run(code: String, log_path: String) -> WebDriverResult<bool> {
     let mut interpreter = Interpreter::new(stmts).await?;
     let res = interpreter.interpret().await;
 
-    std::fs::write(log_path.clone(), interpreter.log_buffer).expect("Could not write log");
+    output_path.push(format!("{}.log", file_name));
+    std::fs::write(output_path.clone(), interpreter.log_buffer).expect("Could not write log");
 
     for (i, screenshot) in interpreter.screenshot_buffer.into_iter().enumerate() {
-        let len = log_path.split(|c| c == '/' || c == '\\').count();
-        let mut s_path = log_path.split(|c| c == '/' || c == '\\').enumerate().filter(|(i, _)| *i != len - 1).map(|(_, txt)| txt).collect::<Vec<&str>>().join("/");
-        s_path.push_str(&format!("/screenshot_{}.png", i + 1));
-        std::fs::write(s_path, screenshot).expect("Could not write screenshot");
+        std::fs::write(
+            output_path
+                .with_file_name(format!("screenshot_{}", i))
+                .with_extension("png"),
+            screenshot,
+        )
+        .expect("Could not write screenshot");
     }
 
     res

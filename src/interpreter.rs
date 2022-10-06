@@ -65,7 +65,7 @@ impl Interpreter {
             stmts_since_last_error_handling: vec![],
             tried_again: false,
             log_buffer: String::new(),
-            screenshot_buffer: vec![]
+            screenshot_buffer: vec![],
         })
     }
 
@@ -103,7 +103,6 @@ impl Interpreter {
         // Return whether or not we exited the program while inn error mode.
         Ok(self.had_error)
     }
-
 
     /// Produces an error with the appropriate severity based on
     /// whether we are currently trying to execute stmts again.
@@ -282,7 +281,8 @@ impl Interpreter {
     /// Takes a screenshot of the page.
     pub async fn screenshot(&mut self) -> RuntimeResult<(), String> {
         self.log_cmd(&format!("Taking a screenshot"));
-        let ss = self.driver
+        let ss = self
+            .driver
             .screenshot_as_png()
             .await
             .map_err(|_| self.error("Error taking screenshot."))?;

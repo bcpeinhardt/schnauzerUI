@@ -1,9 +1,11 @@
+use std::path::{Path, PathBuf};
+
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
-use walkdir::WalkDir;
 use promptly::{prompt, prompt_default, prompt_opt};
+use walkdir::WalkDir;
 
-use schnauzer_ui::{run, scanner::Scanner, interpreter::Interpreter, parser::Stmt};
+use schnauzer_ui::{interpreter::Interpreter, parser::Stmt, run, scanner::Scanner};
 
 /// SchnauzerUI is a DSL for automated web UI testing.
 #[derive(Parser, Debug)]
@@ -11,97 +13,164 @@ use schnauzer_ui::{run, scanner::Scanner, interpreter::Interpreter, parser::Stmt
 #[command(group(
     ArgGroup::new("script_path")
         .required(true)
-        .args(["dir", "filepath", "repl"])))]
+        .args(["input_dir", "filepath", "repl"])))]
 struct Cli {
-    /// Path to a directory of scripts to run in place
+    /// Path to a directory of scripts to run
     #[arg(short, long)]
-    dir: Option<String>,
+    input_dir: Option<PathBuf>,
 
-    /// Path to a SchnauzerUI .sui file
+    /// Path to a SchnauzerUI .sui file to run
     #[arg(short, long)]
-    filepath: Option<String>,
+    filepath: Option<PathBuf>,
 
     /// Run SchnauzerUI in a REPL.
     #[arg(long)]
     repl: bool,
 
-    /// Path to a directory for logs and screenshots
+    /// When --dir or --filepath passed, path to a directory for logs and screenshots.
+    /// When --repl passed, path to a directory for the script to record the repl interactions.
     #[arg(short, long)]
-    output: Option<String>,
+    output_dir: Option<PathBuf>,
 }
 
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    // Destructure the cli arguments passed
+    let Cli {
+        input_dir,
+        filepath,
+        repl,
+        output_dir,
+    } = Cli::parse();
 
-    match (cli.dir, cli.filepath, cli.repl) {
-        (Some(dir), None, false) => run_dir(dir, cli.output).await,
-        (None, Some(filepath), false) => run_file(filepath, cli.output).await,
-        (None, None, true) => run_repl(cli.output).await,
+    // Verify that the passed --output-dir could be a directory (a . would indicate a file instead)
+    let looks_like_file = |path: &PathBuf| {
+        path.file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or("".to_owned())
+            .contains(".")
+    };
+
+    if let Some(ref output) = output_dir {
+        if looks_like_file(output) {
+            eprintln!(
+                "Usage: output_dir flag must be a directory, but received {}",
+                output.display()
+            );
+            return;
+        }
+        // If it can be a directory, create it along with any required parent folders.
+        std::fs::create_dir_all(output.clone()).expect("Could not create directory for logs");
+    }
+
+    // Delegate based on provided cli arguments
+    match (input_dir, filepath, repl) {
+        // They provided a directory, so verify it's a directory and run all the .sui files in the directory
+        (Some(dir), None, false) => {
+            if !dir.is_dir() {
+                eprintln!(
+                    "Usage: dir flag must be a directory, but received {}",
+                    dir.display()
+                );
+                return;
+            }
+            run_dir(dir, output_dir).await
+        }
+
+        // They provided a filepath, so verify it's a file and just run the given file
+        // the output directory should default to the directory of the input file.
+        (None, Some(filepath), false) => {
+            if !filepath.is_file() {
+                eprintln!(
+                    "Usage: filepath flag must be a file, but received {}",
+                    filepath.display()
+                );
+                return;
+            }
+
+            let output = output_dir
+                .or(filepath.parent().map(|f| f.to_path_buf()))
+                .unwrap_or(".".into());
+            run_file(filepath, output).await
+        }
+
+        // They provided the repl flag, so run in repl mode.
+        // The output directory should default to the current directory.
+        (None, None, true) => run_repl(output_dir.unwrap_or(".".into())).await,
+
+        // This represents an unreachable combination of cli arguments.
         _ => unreachable!(),
     }
 }
 
-async fn run_file(filepath: String, output_filepath: Option<String>) {
+/// Reads in the contents of the input file and runs it as scnahuzer ui code.
+async fn run_file(input_filepath: PathBuf, output_filepath: PathBuf) {
     // Read in the file
-    let code = std::fs::read_to_string(filepath.clone())
-        .expect(&format!("Errored reading file {}", filepath));
+    let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(
+        "Errored reading file {}",
+        input_filepath.display()
+    ));
 
-    // Get the current operating directory by splitting off the filename
-    let len = filepath.split(|c| c == '/' || c == '\\').count();
-    let path = filepath
-        .split(|c| c == '/' || c == '\\' )
-        .enumerate()
-        .filter(|(i, _)| *i != len - 1)
-        .map(|(_, txt)| txt)
-        .collect::<Vec<&str>>()
-        .join("/");
+    let file_name = input_filepath
+        .file_stem()
+        .expect("Could not get file name")
+        .to_string_lossy()
+        .to_string();
 
-    if let Some(op) = output_filepath {
-
-        // Create the appropriate directory for logging if it doesn't exist
-        std::fs::create_dir_all(format!("{}/{}", path, op))
-            .expect("Could not create directory for logs");
-
-        // Init logging to the specified path
-        let log_file_name = filepath.split(|c| c == '/' || c == '\\' ).last().unwrap().split(".").filter(|ext| *ext != "sui").collect::<Vec<&str>>().join(".");
-        let log_path = format!("{}/{}/{}.log", path, op, log_file_name);
-        run(code, log_path).await.expect("Oh no!");
-    } else {
-        let log_file_name = filepath.split(|c| c == '/' || c == '\\').last().unwrap().split(".").filter(|ext| *ext != "sui").collect::<Vec<&str>>().join(".");
-        let log_path = format!("{}/{}.log", path, log_file_name);
-        run(code, log_path).await.expect("Oh no!");
-    }
+    // This unwrap is safe because we validate that the input_filepath
+    // has a path component in the main function.
+    run(code, output_filepath, file_name).await.expect("Oh no!");
 }
 
-async fn run_dir(directory: String, output_filepath: Option<String>) {
+/// Walks a directory and runs every sui file it finds as schnauzer ui code.
+/// Scripts run concurrently in different threads.
+/// The output directory should default to the directory of the currently running script.
+async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>) {
     let mut tests = Vec::new();
-    for entry in WalkDir::new(&directory).follow_links(true).into_iter().filter_map(|e| e.ok()) {
-        let op_clone = output_filepath.clone();
-        tests.push(tokio::spawn(async move { 
-            let entry = entry.path().to_str().expect("Invalid directory provided.");
-            if entry.contains(".sui") {
-                run_file(entry.to_owned(), op_clone).await;
+    for entry in WalkDir::new(&directory)
+        .follow_links(true)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let op = output_dir.clone();
+        tests.push(tokio::spawn(async move {
+            if let Some(Some("sui")) = entry.path().extension().map(|os_str| os_str.to_str()) {
+                let op = op.clone().or(entry
+                    .clone()
+                    .path()
+                    .parent()
+                    .map(|p| p.to_path_buf()))
+                    .unwrap_or(".".into());
+                run_file(entry.into_path(), op).await;
             }
         }));
     }
     join_all(tests).await;
 }
 
-async fn run_repl(output_filepath: Option<String>) {
+async fn run_repl(output_filepath: PathBuf) {
     repl_loop(output_filepath).await.unwrap();
 }
 
-async fn repl_loop(output_filepath: Option<String>) -> Result<(), &'static str> { 
-    let mut interpreter = Interpreter::new(vec![]).await.map_err(|_| "Error starting interpreter and/or browser")?;
+async fn repl_loop(output_filepath: PathBuf) -> Result<(), &'static str> {
+    let mut interpreter = Interpreter::new(vec![])
+        .await
+        .map_err(|_| "Error starting interpreter and/or browser")?;
     let mut script_buffer = String::new();
+
+    let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())
+        .map_err(|_| "Error reading script name")?;
     loop {
         // Prompt for a schnauzer_ui statement
-        let code: String = prompt("> ").map_err(|_| "Error reading in line")?;
+        let code: String = prompt("Enter a command").map_err(|_| "Error reading in line")?;
 
         // Check if the user wants to exit
         if code == "exit" {
-            interpreter.driver.close_window().await.map_err(|_| "Error closing browser window")?;
+            interpreter
+                .driver
+                .close_window()
+                .await
+                .map_err(|_| "Error closing browser window")?;
             break;
         }
 
@@ -114,50 +183,51 @@ async fn repl_loop(output_filepath: Option<String>) -> Result<(), &'static str> 
             match interpreter.execute_stmt(stmt.clone()).await {
                 Ok(_) => {
                     // Prompt the user if they want to save the statement
-                    let save_stmt: bool = prompt_default("Save this statement?", true).map_err(|_| "Error reading in line")?;
+                    let save_stmt: bool = prompt_default("Save this statement?", true)
+                        .map_err(|_| "Error reading in line")?;
                     if save_stmt {
                         script_buffer.push_str(&format!("{}", stmt));
                         script_buffer.push('\n');
                         match stmt {
-                            Stmt::Comment(_) => {},
-                            _ => { script_buffer.push('\n'); }
+                            Stmt::Comment(_) => {}
+                            _ => {
+                                script_buffer.push('\n');
+                            }
                         }
                     }
-                },
+                }
                 Err(e) => {
                     eprintln!("The statement {} resulted in an error: {}", stmt, e.0);
-                    let save_stmt: bool = prompt_default("Save this statement anyway?", false).map_err(|_| "Error reading in line")?;
+                    let save_stmt: bool = prompt_default("Save this statement anyway?", false)
+                        .map_err(|_| "Error reading in line")?;
                     if save_stmt {
                         script_buffer.push_str(&format!("{}", stmt));
                         script_buffer.push('\n');
                         match stmt {
-                            Stmt::Comment(_) => {},
-                            _ => { script_buffer.push('\n'); }
+                            Stmt::Comment(_) => {}
+                            _ => {
+                                script_buffer.push('\n');
+                            }
                         }
                     }
-                },
+                }
             }
         }
     }
 
-    let save_script: bool = prompt_default("Save this test run as a SchnauzerUI script?", true).map_err(|_| "Error saving the test run as a SchnauzerUI script.")?;
+    // Prompt the user if the want to save the script
+    let save_script: bool = prompt_default("Save this test run as a SchnauzerUI script?", true)
+        .map_err(|_| "Error saving the test run as a SchnauzerUI script.")?;
+
+    // If they want to save the script, write the script buffer to the output path.
     if save_script {
-        if let Some(op) = output_filepath {
-            let len = op.split(|c| c == '/' || c == '\\').count();
-            let path = op
-        .split(|c| c == '/' || c == '\\' )
-        .enumerate()
-        .filter(|(i, _)| *i != len - 1)
-        .map(|(_, txt)| txt)
-        .collect::<Vec<&str>>()
-        .join("/");
-            std::fs::create_dir_all(format!("{}", path))
-            .expect("Could not create directory for logs");
-            std::fs::write(op, script_buffer).expect("Error writing script to output file");
-        } else {
-            std::fs::write("./test.sui", script_buffer).expect("Error writing script to output file");
-        }
-        
+        std::fs::write(
+            output_filepath
+                .with_file_name(&script_name)
+                .with_extension("sui"),
+            script_buffer,
+        )
+        .expect("Error writing script to output file");
     }
 
     Ok(())
