@@ -99,25 +99,27 @@ pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 
-use std::{ffi::OsStr, path::PathBuf};
+use std::path::PathBuf;
 
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
-use thirtyfour::prelude::WebDriverResult;
+use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
 
 pub async fn run(
     code: String,
     mut output_path: PathBuf,
     file_name: String,
+    driver_config: WebDriverConfig
 ) -> WebDriverResult<bool> {
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
 
     let stmts = Parser::new().parse(tokens);
 
-    let mut interpreter = Interpreter::new(stmts).await?;
-    let res = interpreter.interpret().await;
+    let driver = new_driver(driver_config).await?;
+    let mut interpreter = Interpreter::new(driver, stmts);
+    let res = interpreter.interpret(true).await;
 
     output_path.push(format!("{}.log", file_name));
     std::fs::write(output_path.clone(), interpreter.log_buffer).expect("Could not write log");
@@ -125,7 +127,7 @@ pub async fn run(
     for (i, screenshot) in interpreter.screenshot_buffer.into_iter().enumerate() {
         std::fs::write(
             output_path
-                .with_file_name(format!("screenshot_{}", i))
+                .with_file_name(format!("{}_screenshot_{}", file_name, i))
                 .with_extension("png"),
             screenshot,
         )
@@ -135,12 +137,45 @@ pub async fn run(
     res
 }
 
-pub async fn run_no_log(code: String) -> WebDriverResult<bool> {
+pub async fn run_no_log(code: String, driver: WebDriver) -> WebDriverResult<bool> {
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
 
     let stmts = Parser::new().parse(tokens);
+    let mut interpreter = Interpreter::new(driver, stmts);
+    interpreter.interpret(false).await
+}
 
-    let mut interpreter = Interpreter::new(stmts).await?;
-    interpreter.interpret().await
+#[derive(Debug, Clone, Copy)]
+pub enum SupportedBrowser {
+    FireFox,
+    Chrome
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct WebDriverConfig {
+    pub port: usize,
+    pub headless: bool,
+    pub browser: SupportedBrowser
+}
+
+pub async fn new_driver(WebDriverConfig { port, headless, browser }: WebDriverConfig) -> WebDriverResult<WebDriver> {
+    let localhost = format!("http://localhost:{}", port);
+    match browser {
+        SupportedBrowser::FireFox => {
+            let mut caps = DesiredCapabilities::firefox();
+            if headless {
+                caps.set_headless()?;
+            }
+            WebDriver::new(&localhost, caps).await
+        },
+        SupportedBrowser::Chrome  => {
+            let mut caps = DesiredCapabilities::chrome();
+            if headless {
+                caps.set_headless()?;
+            }
+            WebDriver::new(&localhost, caps).await
+        }
+    }
+    
 }

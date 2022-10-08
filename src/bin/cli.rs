@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
 use promptly::{prompt, prompt_default, prompt_opt};
+use thirtyfour::{prelude::WebDriverResult, WebDriver, DesiredCapabilities};
 use walkdir::WalkDir;
 
-use schnauzer_ui::{interpreter::Interpreter, parser::Stmt, run, scanner::Scanner};
+use schnauzer_ui::{interpreter::Interpreter, parser::Stmt, run, scanner::Scanner, new_driver, WebDriverConfig, SupportedBrowser};
 
 /// SchnauzerUI is a DSL for automated web UI testing.
 #[derive(Parser, Debug)]
@@ -13,15 +14,15 @@ use schnauzer_ui::{interpreter::Interpreter, parser::Stmt, run, scanner::Scanner
 #[command(group(
     ArgGroup::new("script_path")
         .required(true)
-        .args(["input_dir", "filepath", "repl"])))]
+        .args(["input_dir", "input_filepath", "repl"])))]
 struct Cli {
     /// Path to a directory of scripts to run
     #[arg(short, long)]
     input_dir: Option<PathBuf>,
 
     /// Path to a SchnauzerUI .sui file to run
-    #[arg(short, long)]
-    filepath: Option<PathBuf>,
+    #[arg(short = 'f', long)]
+    input_filepath: Option<PathBuf>,
 
     /// Run SchnauzerUI in a REPL.
     #[arg(long)]
@@ -31,6 +32,12 @@ struct Cli {
     /// When --repl passed, path to a directory for the script to record the repl interactions.
     #[arg(short, long)]
     output_dir: Option<PathBuf>,
+
+    #[arg(short = 'z', long)]
+    headless: bool,
+
+    #[arg(short, long)]
+    port: usize
 }
 
 #[tokio::main]
@@ -38,12 +45,23 @@ async fn main() {
     // Destructure the cli arguments passed
     let Cli {
         input_dir,
-        filepath,
+        input_filepath,
         repl,
         output_dir,
+        headless,
+        port
     } = Cli::parse();
 
-    // Verify that the passed --output-dir could be a directory (a . would indicate a file instead)
+    let browser = SupportedBrowser::FireFox;
+
+    // Set up the DriverConfig
+    let driver_config = WebDriverConfig {
+        port,
+        headless,
+        browser
+    };
+
+    // Verify that the passed --output-dir could be a directory (a '.' would indicate a file instead)
     let looks_like_file = |path: &PathBuf| {
         path.file_name()
             .map(|f| f.to_string_lossy().to_string())
@@ -60,11 +78,12 @@ async fn main() {
             return;
         }
         // If it can be a directory, create it along with any required parent folders.
-        std::fs::create_dir_all(output.clone()).expect("Could not create directory for logs");
+        std::fs::create_dir_all(output.clone())
+            .expect(&format!("Could not create directory: {}", output.display()));
     }
 
     // Delegate based on provided cli arguments
-    match (input_dir, filepath, repl) {
+    match (input_dir, input_filepath, repl) {
         // They provided a directory, so verify it's a directory and run all the .sui files in the directory
         (Some(dir), None, false) => {
             if !dir.is_dir() {
@@ -74,11 +93,10 @@ async fn main() {
                 );
                 return;
             }
-            run_dir(dir, output_dir).await
+            run_dir(dir, output_dir, driver_config).await
         }
 
         // They provided a filepath, so verify it's a file and just run the given file
-        // the output directory should default to the directory of the input file.
         (None, Some(filepath), false) => {
             if !filepath.is_file() {
                 eprintln!(
@@ -88,15 +106,20 @@ async fn main() {
                 return;
             }
 
+            // the output directory should default to the directory of the input file.
             let output = output_dir
                 .or(filepath.parent().map(|f| f.to_path_buf()))
                 .unwrap_or(".".into());
-            run_file(filepath, output).await
+            run_file(filepath, output, driver_config).await
         }
 
         // They provided the repl flag, so run in repl mode.
         // The output directory should default to the current directory.
-        (None, None, true) => run_repl(output_dir.unwrap_or(".".into())).await,
+        (None, None, true) => {
+
+            if let Err(e) = repl_loop(output_dir.unwrap_or(".".into()), driver_config).await {
+                eprintln!("REPL encountered an error: {}", e);
+            }},
 
         // This represents an unreachable combination of cli arguments.
         _ => unreachable!(),
@@ -104,7 +127,7 @@ async fn main() {
 }
 
 /// Reads in the contents of the input file and runs it as scnahuzer ui code.
-async fn run_file(input_filepath: PathBuf, output_filepath: PathBuf) {
+async fn run_file(input_filepath: PathBuf, output_filepath: PathBuf, driver_config: WebDriverConfig) {
     // Read in the file
     let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(
         "Errored reading file {}",
@@ -117,15 +140,14 @@ async fn run_file(input_filepath: PathBuf, output_filepath: PathBuf) {
         .to_string_lossy()
         .to_string();
 
-    // This unwrap is safe because we validate that the input_filepath
-    // has a path component in the main function.
-    run(code, output_filepath, file_name).await.expect("Oh no!");
+    // Run the code
+    run(code, output_filepath, file_name, driver_config).await.expect("Oh no!");
 }
 
 /// Walks a directory and runs every sui file it finds as schnauzer ui code.
 /// Scripts run concurrently in different threads.
 /// The output directory should default to the directory of the currently running script.
-async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>) {
+async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>, driver_config: WebDriverConfig) {
     let mut tests = Vec::new();
     for entry in WalkDir::new(&directory)
         .follow_links(true)
@@ -135,27 +157,21 @@ async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>) {
         let op = output_dir.clone();
         tests.push(tokio::spawn(async move {
             if let Some(Some("sui")) = entry.path().extension().map(|os_str| os_str.to_str()) {
-                let op = op.clone().or(entry
+                let op = op
                     .clone()
-                    .path()
-                    .parent()
-                    .map(|p| p.to_path_buf()))
+                    .or(entry.clone().path().parent().map(|p| p.to_path_buf()))
                     .unwrap_or(".".into());
-                run_file(entry.into_path(), op).await;
+                run_file(entry.into_path(), op, driver_config).await;
             }
         }));
     }
     join_all(tests).await;
 }
 
-async fn run_repl(output_filepath: PathBuf) {
-    repl_loop(output_filepath).await.unwrap();
-}
-
-async fn repl_loop(output_filepath: PathBuf) -> Result<(), &'static str> {
-    let mut interpreter = Interpreter::new(vec![])
-        .await
-        .map_err(|_| "Error starting interpreter and/or browser")?;
+async fn repl_loop(output_filepath: PathBuf, driver_config: WebDriverConfig) -> Result<(), &'static str> {
+    let driver = new_driver(driver_config).await
+    .map_err(|_| "Error starting interpreter and/or browser")?;
+    let mut interpreter = Interpreter::new(driver, vec![]);
     let mut script_buffer = String::new();
 
     let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())

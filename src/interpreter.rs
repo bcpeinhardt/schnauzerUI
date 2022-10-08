@@ -51,12 +51,10 @@ pub struct Interpreter {
 
 impl Interpreter {
     /// Constructor for the Interpreter. Registers a webdriver against a standalone selenium grid running at port 4444.
-    pub async fn new(stmts: Vec<Stmt>) -> WebDriverResult<Self> {
-        let caps = DesiredCapabilities::firefox();
-        let driver = WebDriver::new("http://localhost:4444", caps).await?;
+    pub fn new(driver: WebDriver, stmts: Vec<Stmt>) -> Self {
         let stmts = stmts.into_iter().rev().collect();
 
-        Ok(Self {
+        Self {
             driver,
             stmts,
             environment: Environment::new(),
@@ -66,7 +64,7 @@ impl Interpreter {
             tried_again: false,
             log_buffer: String::new(),
             screenshot_buffer: vec![],
-        })
+        }
     }
 
     fn log_cmd(&mut self, msg: &str) {
@@ -80,13 +78,22 @@ impl Interpreter {
     }
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
-    pub async fn interpret(&mut self) -> WebDriverResult<bool> {
+    pub async fn interpret(&mut self, close_driver: bool) -> WebDriverResult<bool> {
+
+        // Reset in case the interpreter is being reused
+        self.curr_elem = None;
+        self.had_error = false;
+        self.stmts_since_last_error_handling.clear();
+        self.tried_again = false;
+
         while let Some(stmt) = self.stmts.pop() {
             match self.execute_stmt(stmt).await {
                 Ok(_) => { /* Just keep swimming */ }
                 Err((e, sev)) => match sev {
                     Severity::Exit => {
-                        self.driver.close_window().await?;
+                        if close_driver {
+                            self.driver.close_window().await?;
+                        }
                         return Ok(true);
                     }
                     Severity::Recoverable => {
@@ -98,7 +105,9 @@ impl Interpreter {
         }
 
         // We completed the entire script.
-        self.driver.close_window().await?;
+        if close_driver {
+            self.driver.close_window().await?;
+        }
 
         // Return whether or not we exited the program while inn error mode.
         Ok(self.had_error)
