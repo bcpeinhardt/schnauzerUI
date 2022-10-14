@@ -3,10 +3,13 @@ use std::path::{Path, PathBuf};
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
 use promptly::{prompt, prompt_default, prompt_opt};
-use thirtyfour::{prelude::WebDriverResult, WebDriver, DesiredCapabilities};
+use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
 use walkdir::WalkDir;
 
-use schnauzer_ui::{interpreter::Interpreter, parser::Stmt, run, scanner::Scanner, new_driver, WebDriverConfig, SupportedBrowser};
+use schnauzer_ui::{
+    interpreter::Interpreter, new_driver, parser::Stmt, run, scanner::Scanner, SupportedBrowser,
+    WebDriverConfig,
+};
 
 /// SchnauzerUI is a DSL for automated web UI testing.
 #[derive(Parser, Debug)]
@@ -17,7 +20,7 @@ use schnauzer_ui::{interpreter::Interpreter, parser::Stmt, run, scanner::Scanner
         .args(["input_dir", "input_filepath", "repl"])))]
 struct Cli {
     /// Path to a directory of scripts to run
-    #[arg(short, long)]
+    #[arg(short = 'd', long)]
     input_dir: Option<PathBuf>,
 
     /// Path to a SchnauzerUI .sui file to run
@@ -25,7 +28,7 @@ struct Cli {
     input_filepath: Option<PathBuf>,
 
     /// Run SchnauzerUI in a REPL.
-    #[arg(long)]
+    #[arg(short = 'i', long)]
     repl: bool,
 
     /// When --dir or --filepath passed, path to a directory for logs and screenshots.
@@ -33,11 +36,17 @@ struct Cli {
     #[arg(short, long)]
     output_dir: Option<PathBuf>,
 
+    /// Whether or not to display the browsers while the tests are running.
     #[arg(short = 'z', long)]
     headless: bool,
 
+    /// The port that the Selenium standalone grid is running on.
     #[arg(short, long)]
-    port: usize
+    port: usize,
+
+    /// Which browser to use. Supports "firefox" or "chrome".
+    #[arg(short, long)]
+    browser: String,
 }
 
 #[tokio::main]
@@ -47,18 +56,26 @@ async fn main() {
         input_dir,
         input_filepath,
         repl,
-        output_dir,
+        mut output_dir,
         headless,
-        port
+        port,
+        browser
     } = Cli::parse();
 
-    let browser = SupportedBrowser::FireFox;
+    let browser = match browser.as_str() { 
+        "chrome" => SupportedBrowser::Chrome,
+        "firefox" => SupportedBrowser::FireFox,
+        _ => {
+            eprintln!("Unsupported browser: {}, currently SchnauzerUI supports 'firefox' and 'chrome'", browser);
+            return;
+        }
+    };
 
     // Set up the DriverConfig
     let driver_config = WebDriverConfig {
         port,
         headless,
-        browser
+        browser,
     };
 
     // Verify that the passed --output-dir could be a directory (a '.' would indicate a file instead)
@@ -69,7 +86,7 @@ async fn main() {
             .contains(".")
     };
 
-    if let Some(ref output) = output_dir {
+    if let Some(ref mut output) = output_dir {
         if looks_like_file(output) {
             eprintln!(
                 "Usage: output_dir flag must be a directory, but received {}",
@@ -116,10 +133,10 @@ async fn main() {
         // They provided the repl flag, so run in repl mode.
         // The output directory should default to the current directory.
         (None, None, true) => {
-
             if let Err(e) = repl_loop(output_dir.unwrap_or(".".into()), driver_config).await {
                 eprintln!("REPL encountered an error: {}", e);
-            }},
+            }
+        }
 
         // This represents an unreachable combination of cli arguments.
         _ => unreachable!(),
@@ -127,7 +144,11 @@ async fn main() {
 }
 
 /// Reads in the contents of the input file and runs it as scnahuzer ui code.
-async fn run_file(input_filepath: PathBuf, output_filepath: PathBuf, driver_config: WebDriverConfig) {
+async fn run_file(
+    input_filepath: PathBuf,
+    output_filepath: PathBuf,
+    driver_config: WebDriverConfig,
+) {
     // Read in the file
     let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(
         "Errored reading file {}",
@@ -141,7 +162,9 @@ async fn run_file(input_filepath: PathBuf, output_filepath: PathBuf, driver_conf
         .to_string();
 
     // Run the code
-    run(code, output_filepath, file_name, driver_config).await.expect("Oh no!");
+    run(code, output_filepath, file_name, driver_config)
+        .await
+        .expect("Oh no!");
 }
 
 /// Walks a directory and runs every sui file it finds as schnauzer ui code.
@@ -168,9 +191,13 @@ async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>, driver_config:
     join_all(tests).await;
 }
 
-async fn repl_loop(output_filepath: PathBuf, driver_config: WebDriverConfig) -> Result<(), &'static str> {
-    let driver = new_driver(driver_config).await
-    .map_err(|_| "Error starting interpreter and/or browser")?;
+async fn repl_loop(
+    output_filepath: PathBuf,
+    driver_config: WebDriverConfig,
+) -> Result<(), &'static str> {
+    let driver = new_driver(driver_config)
+        .await
+        .map_err(|_| "Error starting interpreter and/or browser")?;
     let mut interpreter = Interpreter::new(driver, vec![]);
     let mut script_buffer = String::new();
 

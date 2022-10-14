@@ -79,7 +79,6 @@ impl Interpreter {
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
     pub async fn interpret(&mut self, close_driver: bool) -> WebDriverResult<bool> {
-
         // Reset in case the interpreter is being reused
         self.curr_elem = None;
         self.had_error = false;

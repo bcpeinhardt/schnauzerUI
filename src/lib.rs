@@ -81,9 +81,11 @@
 //! SchnauzerUI to run against an existing selenium infrastructure is on the todo list). To run the provided
 //! selenium grid, `cd` into the selenium directory in a new terminal and run
 //! ```bash
-//! java -jar .\selenium-server-<version>.jar standalone
+//! java -jar .\selenium-server-<version>.jar standalone --override-max-sessions true --max-sessions 1000 --port 4444
 //! ```
-//! It should default to port 4444.
+//! No, this will not launch 1000 browsers. There is another setting, max-instances which controls the number of browsers
+//! running at a time (defaults to 8 for firefox and chrome). Its just that now we can run as many tests as we like (up to 1000), 
+//! provided we only do 8 at a time.
 //!
 //! 2. The tests come with accompanying HTML files. The easiest way to serve the files to localhost
 //! is probably to use python. In another new terminal, run the command
@@ -110,7 +112,7 @@ pub async fn run(
     code: String,
     mut output_path: PathBuf,
     file_name: String,
-    driver_config: WebDriverConfig
+    driver_config: WebDriverConfig,
 ) -> WebDriverResult<bool> {
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
@@ -123,15 +125,20 @@ pub async fn run(
 
     output_path.push(format!("{}.log", file_name));
     std::fs::write(output_path.clone(), interpreter.log_buffer).expect("Could not write log");
-
+    output_path.pop();
+    if interpreter.screenshot_buffer.len() > 0 { 
+        output_path.push("screenshots");
+    std::fs::create_dir_all(output_path.clone())
+            .expect(&format!("Could not create directory: {}", output_path.display()));
     for (i, screenshot) in interpreter.screenshot_buffer.into_iter().enumerate() {
+        let mut op = output_path.clone();
+        op.push(format!("{}_screenshot_{}.png", file_name, i));
         std::fs::write(
-            output_path
-                .with_file_name(format!("{}_screenshot_{}", file_name, i))
-                .with_extension("png"),
+            op,
             screenshot,
         )
         .expect("Could not write screenshot");
+    }
     }
 
     res
@@ -143,33 +150,37 @@ pub async fn run_no_log(code: String, driver: WebDriver) -> WebDriverResult<bool
 
     let stmts = Parser::new().parse(tokens);
     let mut interpreter = Interpreter::new(driver, stmts);
-    interpreter.interpret(false).await
+    interpreter.interpret(true).await
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum SupportedBrowser {
     FireFox,
-    Chrome
+    Chrome,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct WebDriverConfig {
     pub port: usize,
     pub headless: bool,
-    pub browser: SupportedBrowser
+    pub browser: SupportedBrowser,
 }
 
-pub async fn new_driver(WebDriverConfig { port, headless, browser }: WebDriverConfig) -> WebDriverResult<WebDriver> {
+pub async fn new_driver(
+    WebDriverConfig {
+        port,
+        headless,
+        browser,
+    }: WebDriverConfig,
+) -> WebDriverResult<WebDriver> {
     let localhost = format!("http://localhost:{}", port);
     match browser {
         SupportedBrowser::FireFox => {
             let mut caps = DesiredCapabilities::firefox();
-            if headless {
-                caps.set_headless()?;
-            }
+            caps.set_headless()?;
             WebDriver::new(&localhost, caps).await
-        },
-        SupportedBrowser::Chrome  => {
+        }
+        SupportedBrowser::Chrome => {
             let mut caps = DesiredCapabilities::chrome();
             if headless {
                 caps.set_headless()?;
@@ -177,5 +188,4 @@ pub async fn new_driver(WebDriverConfig { port, headless, browser }: WebDriverCo
             WebDriver::new(&localhost, caps).await
         }
     }
-    
 }

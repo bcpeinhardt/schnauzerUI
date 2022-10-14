@@ -1,6 +1,6 @@
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
-use schnauzer_ui::{run_no_log, SupportedBrowser, WebDriverConfig, new_driver};
+use schnauzer_ui::{new_driver, run_no_log, SupportedBrowser, WebDriverConfig};
 use thirtyfour::WebDriver;
 
 // Set up the DriverConfig
@@ -10,8 +10,8 @@ const DRIVER_CONFIG: WebDriverConfig = WebDriverConfig {
     browser: SupportedBrowser::FireFox,
 };
 
-lazy_static!{
-    static ref DRIVER: AsyncOnce<WebDriver> = AsyncOnce::new(async{ new_driver(DRIVER_CONFIG).await.expect("Could not init driver") });
+async fn get_test_driver() -> WebDriver {
+    new_driver(DRIVER_CONFIG).await.unwrap()
 }
 
 // Health Check ------------------------------------------------------------------------------------
@@ -19,14 +19,12 @@ lazy_static!{
 #[tokio::test]
 async fn health_check() {
 
-    let driver = DRIVER.get().await.to_owned();
-
     let script = r#"
     # Navigate to the test url
     url "http://localhost:1234"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
 }
 
@@ -34,8 +32,6 @@ async fn health_check() {
 
 #[tokio::test]
 pub async fn locate() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     url "http://localhost:1234/locate.html"
@@ -50,7 +46,7 @@ pub async fn locate() {
     locate "//input[@name='locate-by-name']/../p"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
@@ -60,8 +56,6 @@ pub async fn locate() {
 #[tokio::test]
 async fn manually_set_locator_for_elem() {
 
-    let driver = DRIVER.get().await.to_owned();
-
     let script = r#"
     url "http://localhost:1234/variables.html"
 
@@ -70,15 +64,13 @@ async fn manually_set_locator_for_elem() {
     locate myPlaceholder and type "Found ya"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
 
 #[tokio::test]
 async fn read_locator_from_elem() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     url "http://localhost:1234/variables.html"
@@ -88,7 +80,7 @@ async fn read_locator_from_elem() {
     locate myPlaceholder and type "Found ya"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
@@ -97,8 +89,6 @@ async fn read_locator_from_elem() {
 
 #[tokio::test]
 async fn catch_error_does_not_get_stuck_in_loop() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"# Navigate to the test url
     url "http://localhost:1234/login.html"
@@ -117,15 +107,13 @@ async fn catch_error_does_not_get_stuck_in_loop() {
     # Handle errors
     catch-error: screenshot and refresh and try-again"#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
 }
 
 #[tokio::test]
 async fn good_test_does_not_error() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     # Navigate to the test url
@@ -135,15 +123,13 @@ async fn good_test_does_not_error() {
     locate "Username" and type "test@test.com"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
 
 #[tokio::test]
 async fn exit_early_no_catch_error_stmt_correctly_indicates_early_return() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     # Navigate to the test url
@@ -153,7 +139,7 @@ async fn exit_early_no_catch_error_stmt_correctly_indicates_early_return() {
     locate "Im not here" and type "test@test.com"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
 }
@@ -162,8 +148,6 @@ async fn exit_early_no_catch_error_stmt_correctly_indicates_early_return() {
 
 #[tokio::test]
 pub async fn if_stmt() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     url "http://localhost:1234/if_stmt.html"
@@ -175,7 +159,7 @@ pub async fn if_stmt() {
     if locate "Type Here" then type "Woohoo"
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
@@ -184,8 +168,6 @@ pub async fn if_stmt() {
 
 #[tokio::test]
 async fn basic_example() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     url "http://localhost:1234/login.html"
@@ -200,15 +182,13 @@ async fn basic_example() {
     locate "Submit" and click
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
 
 #[tokio::test]
 async fn error_handling_example() {
-
-    let driver = DRIVER.get().await.to_owned();
 
     let script = r#"
     url "http://localhost:1234/login.html"
@@ -226,7 +206,7 @@ async fn error_handling_example() {
     catch-error: screenshot and refresh and try-again
     "#;
 
-    let result = run_no_log(script.to_owned(), driver).await;
+    let result = run_no_log(script.to_owned(), get_test_driver().await).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
 }
