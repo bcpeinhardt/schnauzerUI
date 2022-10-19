@@ -1,6 +1,6 @@
 //! SchnauzerUI is a human readable DSL for performing automated UI testing in the browser.
 //! The main goal of SchnauzerUI is to increase stakeholder visibility and participation in
-//! Quality Assurance testing. Rather than providing a shim to underling code written by
+//! automated Quality Assurance testing. Rather than providing a shim to underling code written by
 //! a QA engineer (see [Cucumber](https://cucumber.io/)), SchnauzerUI is the only source of truth for a
 //! test's execution. In this way, SchnauzerUI aims to provide a test report you can trust.
 //!
@@ -14,18 +14,56 @@
 //! then run `cargo install --git https://github.com/bcpeinhardt/schnauzerUI`.
 //!
 //! SchnauzerUI is __also__ a Rust library, which can be used in other projects.
+//! 
+//! # Motivation
+//! 
+//! QA Departments today tend to operate as two separate teams with two separate missions. 
+//! 
+//! There are the
+//! manual testers, who generally test features that are actively coming out (i.e. work in the current dev
+//! sprint). They usually have deep knowledge of the system under test and good working relationships 
+//! with the development team. They probably have pretty solid technical chops, or at least are comfortable
+//! using API and Database testing tools, and are excellent written communicators. The really 
+//! good ones will also have an interest in security.
+//! They have a personal process that works for them, and there's a good chance
+//! they have processes and domain knowledge that are not documented in the fancy team wiki.
+//! In general, they are overworked and under valued.
+//! 
+//! Then there are the automation testers. They typically work in sprints like 
+//! the development team, incorporating a backlog of smoke and regression tests into automated test frameworks,
+//! which are (theoretically) used as part of automated testing and deployment processes. 
+//! The automated testing suite is generally a real software project, sometimes just as complex as one of
+//! the companies products, maintained by real(ly expensive) engineers, and reviewed by no one because
+//! the rest of the engineers are busy building products. There's a good chance they're working
+//! in a feature factory style, in a project that probably includes API and Database testing that doesn't play
+//! nice with the companies CI/CD pipeline, and is plagued by scope creep. 
+//! Bonus points if the project was vendored and the vendor hardly communicates with in house employees.
+//! 
+//! Our thesis is basically this:
+//! 1. Complicated whitebox E2E testing is an engineering task, so do it during the development process 
+//! and get real buy in and participation from the development team. You might even be using a web framework
+//! with built in support for E2E testing.
+//! 
+//! 2. Automated black box "functional" E2E testing is a straight forward enough task to be carried 
+//! out by "manual" QA testers, with the right tools. __There is absolutely no reason
+//! a person should need to know Java to verify that a button works__. These tools should be open source and sensitive test
+//! data (for example, logins) should live on prem or in private repos, not $900/month and run on some
+//! other companies infrastructure so that you can be overcharged for compute and sued when they get hacked.
+//! 
+//! SchnauzerUI aims to be the right tool for point number two. It's a human readable DSL (Domain Specific Language)
+//! for writing UI tests, that any manual QA tester can quickly pick up (without having to become a programmer).
 //!
 //! # Language
 //!
 //! Let's look at an example:
 //! ```SchnauzerUI
-//! # Type in username (located by labels)
+//! # Type in username
 //! locate "Username" and type "test@test.com"
 //!
-//! # Type in password (located by placeholder)
+//! # Type in password
 //! locate "Password" and type "Password123!"
 //!
-//! # Click the submit button (located by element text)
+//! # Click the submit button
 //! locate "Submit" and click
 //! ```
 //!
@@ -45,6 +83,7 @@
 //!
 //! Once an element is in focus (i.e. located), any subsequent commands will be executed against it. Commands relating
 //! to web elements include `click`, `type`, and `read-to` (a command for storing the text of a web element as a variable).
+//! Eventually, basically any reasonable interaction with a browser will be supported.
 //!
 //! SchnauzerUI also includes a concept of error handling. UI tests can be brittle. Sometimes you simply want to write a long
 //! test flow (even when testing gurus tell you not too) without it bailing at the first slow page load. For this, SchnauzerUI
@@ -72,6 +111,15 @@
 //!
 //! (Note: This does not risk getting caught in a loop. The `try-again` command will only re-execute
 //! the same code once.)
+//! 
+//! # Project Features (Not yet complete)
+//! * Test scripts that non-technical stakeholders feel comfortable reading, auditing, and authoring!
+//! * CLI for running individual tests or test suites
+//! * Repl Driven Development
+//! * Auto-generated Test Reports (Logs, JSON, and HTML output)
+//! * Editor Support (LSP)
+//! * CI/CD support (maintained Docker images, github actions, bitbucket pipelines, etc.)
+//! * Easily deploy on existing Selenium infrastructure
 //!
 //! # Running the tests
 //! Before running the tests you will need firefox and geckodriver installed and in your path.
