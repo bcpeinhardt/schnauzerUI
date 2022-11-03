@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use async_recursion::async_recursion;
+use futures::TryFutureExt;
 use thirtyfour::prelude::*;
 
 use crate::{
@@ -86,10 +87,12 @@ impl Interpreter {
         self.tried_again = false;
 
         while let Some(stmt) = self.stmts.pop() {
+            self.log_cmd(&stmt.to_string());
             match self.execute_stmt(stmt).await {
                 Ok(_) => { /* Just keep swimming */ }
                 Err((e, sev)) => match sev {
                     Severity::Exit => {
+                        self.log_err(&e);
                         if close_driver {
                             self.driver.close_window().await?;
                         }
@@ -263,7 +266,21 @@ impl Interpreter {
             Cmd::Screenshot => self.screenshot().await,
             Cmd::ReadTo(cp) => self.read_to(cp).await,
             Cmd::Url(url) => self.url_cmd(url).await,
+            Cmd::Press(cp) => self.press(cp).await,
         }
+    }
+
+    pub async fn press(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+        let key_to_press = match self.resolve(cp)?.as_ref() {
+            "Enter" => Key::Enter,
+            _ => return Err(self.error("Unsupported Key")),
+        };
+        self.get_curr_elem()?
+            .send_keys("" + key_to_press)
+            .await
+            .map_err(|_| {
+                self.error("Error pressing key. Make sure you have an element in focus first.")
+            })
     }
 
     /// Reads the text of the currently located element to a variable.
@@ -320,6 +337,7 @@ impl Interpreter {
     /// Tries to type into the current element
     pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> RuntimeResult<(), String> {
         let txt = self.resolve(cmd_param)?;
+        self.get_curr_elem()?.clear().await.map_err(|_| self.error("Error clearing element"))?;
         self.get_curr_elem()?
             .send_keys(txt)
             .await
@@ -339,13 +357,14 @@ impl Interpreter {
     /// (placeholder, preceding label, text, id, name, title, class, xpath)
     pub async fn locate(&mut self, locator: CmdParam) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
+        let locator = locator.replace("'", "\\'");
         for wait in [0, 5, 10] {
             // Locate an element by its placeholder
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//input[@placeholder='{}']", locator)))
                 .wait(Duration::from_secs(wait), Duration::from_secs(1))
-                .single()
+                .first()
                 .await
             {
                 return self.set_curr_elem(found_elem).await;
@@ -368,7 +387,7 @@ impl Interpreter {
                 .driver
                 .query(By::XPath(&format!("//*[text()='{}']", locator)))
                 .nowait()
-                .single()
+                .first()
                 .await
             {
                 return self.set_curr_elem(found_elem).await;
@@ -384,7 +403,7 @@ impl Interpreter {
                 .driver
                 .query(By::Name(&locator))
                 .nowait()
-                .single()
+                .first()
                 .await
             {
                 return self.set_curr_elem(found_elem).await;
@@ -395,7 +414,7 @@ impl Interpreter {
                 .driver
                 .query(By::XPath(&format!("//*[@title='{}']", locator)))
                 .nowait()
-                .single()
+                .first()
                 .await
             {
                 return self.set_curr_elem(found_elem).await;
@@ -406,7 +425,7 @@ impl Interpreter {
                 .driver
                 .query(By::ClassName(&locator))
                 .nowait()
-                .single()
+                .first()
                 .await
             {
                 return self.set_curr_elem(found_elem).await;
@@ -417,7 +436,7 @@ impl Interpreter {
                 .driver
                 .query(By::XPath(&locator))
                 .nowait()
-                .single()
+                .first()
                 .await
             {
                 return self.set_curr_elem(found_elem).await;

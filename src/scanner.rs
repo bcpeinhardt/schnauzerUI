@@ -11,6 +11,7 @@ pub enum TokenType {
     CatchError,
     ReadTo,
     Url,
+    Press,
 
     // Literals (the associated string is the string literal)
     String(String),
@@ -71,6 +72,7 @@ impl std::fmt::Display for TokenType {
             TokenType::As => "as",
             TokenType::Url => "url",
             TokenType::Comment(s) => s,
+            TokenType::Press => "press",
         };
 
         write!(f, "{}", lexeme)
@@ -156,7 +158,7 @@ impl Scanner {
         self.tokens.clone()
     }
 
-    /// Takes a lexem (the string representation of a token) and tries to resolve it
+    /// Takes a lexeme (the string representation of a token) and tries to resolve it
     /// to a Schnauzer UI token.
     /// String literals are sometimes passed by the scan function in pieces (due to splitting on whitespace),
     /// so the function returns None while it is in the process of rejoining those string literals.
@@ -177,6 +179,7 @@ impl Scanner {
             "save" => Some(self.token(TokenType::Save)),
             "as" => Some(self.token(TokenType::As)),
             "url" => Some(self.token(TokenType::Url)),
+            "press" => Some(self.token(TokenType::Press)),
 
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")

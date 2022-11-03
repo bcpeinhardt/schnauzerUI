@@ -59,14 +59,17 @@ async fn main() {
         mut output_dir,
         headless,
         port,
-        browser
+        browser,
     } = Cli::parse();
 
-    let browser = match browser.as_str() { 
+    let browser = match browser.as_str() {
         "chrome" => SupportedBrowser::Chrome,
         "firefox" => SupportedBrowser::FireFox,
         _ => {
-            eprintln!("Unsupported browser: {}, currently SchnauzerUI supports 'firefox' and 'chrome'", browser);
+            eprintln!(
+                "Unsupported browser: {}, currently SchnauzerUI supports 'firefox' and 'chrome'",
+                browser
+            );
             return;
         }
     };

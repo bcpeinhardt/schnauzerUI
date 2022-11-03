@@ -18,7 +18,6 @@ async fn get_test_driver() -> WebDriver {
 
 #[tokio::test]
 async fn health_check() {
-
     let script = r#"
     # Navigate to the test url
     url "http://localhost:1234"
@@ -32,7 +31,6 @@ async fn health_check() {
 
 #[tokio::test]
 pub async fn locate() {
-
     let script = r#"
     url "http://localhost:1234/locate.html"
 
@@ -55,7 +53,6 @@ pub async fn locate() {
 
 #[tokio::test]
 async fn manually_set_locator_for_elem() {
-
     let script = r#"
     url "http://localhost:1234/variables.html"
 
@@ -71,7 +68,6 @@ async fn manually_set_locator_for_elem() {
 
 #[tokio::test]
 async fn read_locator_from_elem() {
-
     let script = r#"
     url "http://localhost:1234/variables.html"
 
@@ -89,7 +85,6 @@ async fn read_locator_from_elem() {
 
 #[tokio::test]
 async fn catch_error_does_not_get_stuck_in_loop() {
-
     let script = r#"# Navigate to the test url
     url "http://localhost:1234/login.html"
     
@@ -114,7 +109,6 @@ async fn catch_error_does_not_get_stuck_in_loop() {
 
 #[tokio::test]
 async fn good_test_does_not_error() {
-
     let script = r#"
     # Navigate to the test url
     url "http://localhost:1234/login.html"
@@ -130,7 +124,6 @@ async fn good_test_does_not_error() {
 
 #[tokio::test]
 async fn exit_early_no_catch_error_stmt_correctly_indicates_early_return() {
-
     let script = r#"
     # Navigate to the test url
     url "http://localhost:1234/login.html"
@@ -148,7 +141,6 @@ async fn exit_early_no_catch_error_stmt_correctly_indicates_early_return() {
 
 #[tokio::test]
 pub async fn if_stmt() {
-
     let script = r#"
     url "http://localhost:1234/if_stmt.html"
 
@@ -168,7 +160,6 @@ pub async fn if_stmt() {
 
 #[tokio::test]
 async fn basic_example() {
-
     let script = r#"
     url "http://localhost:1234/login.html"
 
@@ -189,7 +180,6 @@ async fn basic_example() {
 
 #[tokio::test]
 async fn error_handling_example() {
-
     let script = r#"
     url "http://localhost:1234/login.html"
 

@@ -92,7 +92,10 @@ pub enum Cmd {
     /// Associated string is the variable name
     ReadTo(String),
 
+    /// Navigate the driver to the provided URL
     Url(CmdParam),
+
+    Press(CmdParam),
 }
 
 impl std::fmt::Display for Cmd {
@@ -106,6 +109,7 @@ impl std::fmt::Display for Cmd {
             Cmd::Screenshot => write!(f, "screenshot"),
             Cmd::ReadTo(cp) => write!(f, "read-to {}", cp),
             Cmd::Url(cp) => write!(f, "url {}", cp),
+            Cmd::Press(cp) => write!(f, "press {}", cp),
         }
     }
 }
@@ -121,6 +125,18 @@ impl std::fmt::Display for CmdParam {
         match self {
             CmdParam::String(s) => write!(f, "\"{}\"", s),
             CmdParam::Variable(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl TryFrom<Token> for CmdParam {
+    type Error = String;
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value.token_type {
+            TokenType::String(s) => Ok(Self::String(s)),
+            TokenType::Variable(v) => Ok(Self::Variable(v)),
+            _ => Err("Invalid input".to_owned()),
         }
     }
 }
@@ -220,7 +236,7 @@ impl Parser {
     }
 
     /// Parses a statement
-    /// locate "Submit" and click
+    /// Ex. locate "Submit" and click
     pub fn parse_cmd_stmt(&mut self) -> Result<CmdStmt, String> {
         let lhs = self.parse_cmd()?;
         if let Some(and_token) = self.advance_on(TokenType::And) {
@@ -317,6 +333,30 @@ impl Parser {
                         ..
                     }),
                 ) => Ok(Cmd::Url(CmdParam::Variable(v))),
+                _ => Err(self.error("Expected a variable or some text.")),
+            }
+        } else if self.advance_on(TokenType::Press).is_some() {
+            // Try to advance on a string
+            let url = self.advance_on(TokenType::String("n/a".to_owned()));
+
+            // Try to advance on a variable
+            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
+
+            match (url, variable) {
+                (
+                    Some(Token {
+                        token_type: TokenType::String(s),
+                        ..
+                    }),
+                    _,
+                ) => Ok(Cmd::Press(CmdParam::String(s))),
+                (
+                    _,
+                    Some(Token {
+                        token_type: TokenType::Variable(v),
+                        ..
+                    }),
+                ) => Ok(Cmd::Press(CmdParam::Variable(v))),
                 _ => Err(self.error("Expected a variable or some text.")),
             }
         } else {
