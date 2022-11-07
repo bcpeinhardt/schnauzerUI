@@ -1,5 +1,3 @@
-use async_once::AsyncOnce;
-use lazy_static::lazy_static;
 use schnauzer_ui::{new_driver, run_no_log, SupportedBrowser, WebDriverConfig};
 use thirtyfour::WebDriver;
 
@@ -35,13 +33,13 @@ pub async fn locate() {
     url "http://localhost:1234/locate.html"
 
     locate "locate-by-placeholder"
-    locate "locate-by-preceding-label"
-    locate "locate-by-text"
+    locate "locate by preceding label"
+    locate "locate by text"
     locate "locate-by-id"
     locate "locate-by-name"
     locate "locate-by-title"
     locate "locate-by-class"
-    locate "//input[@name='locate-by-name']/../p"
+    locate "//input[@name='locate-by-name']"
     "#;
 
     let result = run_no_log(script.to_owned(), get_test_driver().await).await;

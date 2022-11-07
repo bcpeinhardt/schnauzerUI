@@ -337,7 +337,10 @@ impl Interpreter {
     /// Tries to type into the current element
     pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> RuntimeResult<(), String> {
         let txt = self.resolve(cmd_param)?;
-        self.get_curr_elem()?.clear().await.map_err(|_| self.error("Error clearing element"))?;
+        self.get_curr_elem()?
+            .clear()
+            .await
+            .map_err(|_| self.error("Error clearing element"))?;
         self.get_curr_elem()?
             .send_keys(txt)
             .await
@@ -357,7 +360,6 @@ impl Interpreter {
     /// (placeholder, preceding label, text, id, name, title, class, xpath)
     pub async fn locate(&mut self, locator: CmdParam) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
-        let locator = locator.replace("'", "\\'");
         for wait in [0, 5, 10] {
             // Locate an element by its placeholder
             if let Ok(found_elem) = self
@@ -399,13 +401,7 @@ impl Interpreter {
             }
 
             // Try to find an element by it's name
-            if let Ok(found_elem) = self
-                .driver
-                .query(By::Name(&locator))
-                .nowait()
-                .first()
-                .await
-            {
+            if let Ok(found_elem) = self.driver.query(By::Name(&locator)).nowait().first().await {
                 return self.set_curr_elem(found_elem).await;
             }
 

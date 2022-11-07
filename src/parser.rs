@@ -195,7 +195,7 @@ impl Parser {
             let variable_name = self
                 .advance_on(TokenType::Variable("n/a".to_owned()))
                 .ok_or(self.error("Expected a variable name"))?;
-            let as_token = self
+            let _as_token = self
                 .advance_on(TokenType::As)
                 .ok_or(self.error("Expected `as`"))?;
             let value = self
@@ -225,7 +225,7 @@ impl Parser {
 
     pub fn parse_if_stmt(&mut self) -> Result<IfStmt, String> {
         let condition = self.parse_cmd()?;
-        let then_token = self
+        let _then_token = self
             .advance_on(TokenType::Then)
             .ok_or(self.error("Expected keyword `then`"))?;
         let then_branch = self.parse_cmd_stmt()?;
@@ -249,56 +249,22 @@ impl Parser {
             Ok(CmdStmt { lhs, rhs: None })
         }
     }
+    
+    pub fn parse_cmd_param(&mut self) -> Result<CmdParam, String> {
+        self.advance_on_any_of(vec![
+                TokenType::String("n/a".to_owned()),
+                TokenType::Variable("n/a".to_owned()),
+            ])
+            .ok_or(self.error("Expected variable or text"))?
+            .try_into()
+    }
 
     pub fn parse_cmd(&mut self) -> Result<Cmd, String> {
         if self.advance_on(TokenType::Locate).is_some() {
-            // Try to advance on a string
-            let locator = self.advance_on(TokenType::String("n/a".to_owned()));
-
-            // Try to advance on a variable
-            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
-
-            match (locator, variable) {
-                (
-                    Some(Token {
-                        token_type: TokenType::String(s),
-                        ..
-                    }),
-                    _,
-                ) => Ok(Cmd::Locate(CmdParam::String(s))),
-                (
-                    _,
-                    Some(Token {
-                        token_type: TokenType::Variable(v),
-                        ..
-                    }),
-                ) => Ok(Cmd::Locate(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text.")),
-            }
+            self.parse_cmd_param()
+            .map(|cp| Cmd::Locate(cp))
         } else if self.advance_on(TokenType::Type).is_some() {
-            // Try to advance on a string
-            let txt = self.advance_on(TokenType::String("n/a".to_owned()));
-
-            // Try to advance on a variable
-            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
-
-            match (txt, variable) {
-                (
-                    Some(Token {
-                        token_type: TokenType::String(s),
-                        ..
-                    }),
-                    _,
-                ) => Ok(Cmd::Type(CmdParam::String(s))),
-                (
-                    _,
-                    Some(Token {
-                        token_type: TokenType::Variable(v),
-                        ..
-                    }),
-                ) => Ok(Cmd::Type(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text.")),
-            }
+            self.parse_cmd_param().map(|cp| Cmd::Type(cp))
         } else if self.advance_on(TokenType::ReadTo).is_some() {
             let var = self
                 .advance_on(TokenType::Variable("n/a".to_owned()))
@@ -312,53 +278,9 @@ impl Parser {
                 _ => Err(self.error("Expected Variable")),
             }
         } else if self.advance_on(TokenType::Url).is_some() {
-            // Try to advance on a string
-            let url = self.advance_on(TokenType::String("n/a".to_owned()));
-
-            // Try to advance on a variable
-            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
-
-            match (url, variable) {
-                (
-                    Some(Token {
-                        token_type: TokenType::String(s),
-                        ..
-                    }),
-                    _,
-                ) => Ok(Cmd::Url(CmdParam::String(s))),
-                (
-                    _,
-                    Some(Token {
-                        token_type: TokenType::Variable(v),
-                        ..
-                    }),
-                ) => Ok(Cmd::Url(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text.")),
-            }
+            self.parse_cmd_param().map(|cp| Cmd::Url(cp))
         } else if self.advance_on(TokenType::Press).is_some() {
-            // Try to advance on a string
-            let url = self.advance_on(TokenType::String("n/a".to_owned()));
-
-            // Try to advance on a variable
-            let variable = self.advance_on(TokenType::Variable("n/a".to_owned()));
-
-            match (url, variable) {
-                (
-                    Some(Token {
-                        token_type: TokenType::String(s),
-                        ..
-                    }),
-                    _,
-                ) => Ok(Cmd::Press(CmdParam::String(s))),
-                (
-                    _,
-                    Some(Token {
-                        token_type: TokenType::Variable(v),
-                        ..
-                    }),
-                ) => Ok(Cmd::Press(CmdParam::Variable(v))),
-                _ => Err(self.error("Expected a variable or some text.")),
-            }
+            self.parse_cmd_param().map(|cp| Cmd::Press(cp))
         } else {
             let token = self.advance_on_any();
             match token.token_type {
