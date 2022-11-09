@@ -1,5 +1,0 @@
-# Navigate to the test
-url "localhost:1234/scroll_into_view_test.html" and screenshot
-
-# Click the button
-locate "Click me!" and click and screenshot

@@ -1,7 +1,0 @@
-# Search for Rust videos, the navigate home
-url "http://youtube.com"
-locate "Search" and type "Rust programming"
-locate "search-icon-legacy" and click
-screenshot
-locate "Home" and click
-screenshot
