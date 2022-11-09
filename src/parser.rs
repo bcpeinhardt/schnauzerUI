@@ -95,6 +95,8 @@ pub enum Cmd {
     /// Navigate the driver to the provided URL
     Url(CmdParam),
 
+    /// Parses the cmd param as a key to press.
+    /// Todo: Need a better strategy for handling keyboard input
     Press(CmdParam),
 }
 
@@ -192,15 +194,15 @@ impl Parser {
             let stmt = self.parse_cmd_stmt()?;
             Ok(Stmt::CatchErr(stmt))
         } else if self.advance_on(TokenType::Save).is_some() {
-            let variable_name = self
-                .advance_on(TokenType::Variable("n/a".to_owned()))
-                .ok_or(self.error("Expected a variable name"))?;
-            let _as_token = self
-                .advance_on(TokenType::As)
-                .ok_or(self.error("Expected `as`"))?;
             let value = self
                 .advance_on(TokenType::String("n/a".to_owned()))
                 .ok_or(self.error("Expected some txt"))?;
+            let _as_token = self
+                .advance_on(TokenType::As)
+                .ok_or(self.error("Expected `as`"))?;
+            let variable_name = self
+                .advance_on(TokenType::Variable("n/a".to_owned()))
+                .ok_or(self.error("Expected a variable name"))?;
 
             match (variable_name, value) {
                 (
@@ -249,20 +251,19 @@ impl Parser {
             Ok(CmdStmt { lhs, rhs: None })
         }
     }
-    
+
     pub fn parse_cmd_param(&mut self) -> Result<CmdParam, String> {
         self.advance_on_any_of(vec![
-                TokenType::String("n/a".to_owned()),
-                TokenType::Variable("n/a".to_owned()),
-            ])
-            .ok_or(self.error("Expected variable or text"))?
-            .try_into()
+            TokenType::String("n/a".to_owned()),
+            TokenType::Variable("n/a".to_owned()),
+        ])
+        .ok_or(self.error("Expected variable or text"))?
+        .try_into()
     }
 
     pub fn parse_cmd(&mut self) -> Result<Cmd, String> {
         if self.advance_on(TokenType::Locate).is_some() {
-            self.parse_cmd_param()
-            .map(|cp| Cmd::Locate(cp))
+            self.parse_cmd_param().map(|cp| Cmd::Locate(cp))
         } else if self.advance_on(TokenType::Type).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Type(cp))
         } else if self.advance_on(TokenType::ReadTo).is_some() {

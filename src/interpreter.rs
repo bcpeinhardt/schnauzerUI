@@ -298,6 +298,8 @@ impl Interpreter {
     pub fn try_again(&mut self) {
         self.tried_again = true;
         self.stmts.push(Stmt::SetTryAgainFieldToFalse);
+        
+        // This would be more efficient with some kind of mem_swap type function.
         self.stmts
             .append(&mut self.stmts_since_last_error_handling.clone());
         self.stmts_since_last_error_handling.clear();
@@ -396,7 +398,7 @@ impl Interpreter {
             }
 
             // Try to find an element by it's id
-            if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().single().await {
+            if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().first().await {
                 return self.set_curr_elem(found_elem).await;
             }
 
