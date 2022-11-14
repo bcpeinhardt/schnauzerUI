@@ -54,7 +54,7 @@ async fn manually_set_locator_for_elem() {
     let script = r#"
     url "http://localhost:1234/variables.html"
 
-    save myPlaceholder as "I show you where to type"
+    save "I show you where to type" as myPlaceholder
 
     locate myPlaceholder and type "Found ya"
     "#;
