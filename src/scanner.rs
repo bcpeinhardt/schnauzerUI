@@ -182,6 +182,7 @@ impl Scanner {
             "as" => Some(self.token(TokenType::As)),
             "url" => Some(self.token(TokenType::Url)),
             "press" => Some(self.token(TokenType::Press)),
+            "chill" => Some(self.token(TokenType::Chill)),
 
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")
