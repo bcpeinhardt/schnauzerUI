@@ -11,7 +11,7 @@ To run the grid, you'll need java installed on your system. Run the grid with
 
 Now in another terminal, we can cargo install Schnauzer UI. For this you'll
 need cargo and rust on your system. In another temrinal, run
-`cargo install https://github.com/bcpeinhardt/schnauzerUI`. 
+`cargo install --git https://github.com/bcpeinhardt/schnauzerUI`. 
 
 Once it's done compiling, you should be all set up to start automating the 
 Schnauzer UI way. To start up the repl, run

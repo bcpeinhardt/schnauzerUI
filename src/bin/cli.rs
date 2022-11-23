@@ -164,8 +164,11 @@ async fn run_file(
         .to_string_lossy()
         .to_string();
 
+    // Create a driver
+    let driver = new_driver(driver_config).await.expect("Could not launch driver");
+
     // Run the code
-    run(code, output_filepath, file_name, driver_config)
+    run(code, output_filepath, file_name, driver)
         .await
         .expect("Oh no!");
 }

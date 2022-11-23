@@ -49,14 +49,17 @@ pub async fn run(
     code: String,
     mut output_path: PathBuf,
     file_name: String,
-    driver_config: WebDriverConfig,
+    driver: WebDriver,
 ) -> WebDriverResult<bool> {
+
+    // Tokenize
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
 
+    // Parse
     let stmts = Parser::new().parse(tokens);
 
-    let driver = new_driver(driver_config).await?;
+    // Interpret
     let mut interpreter = Interpreter::new(driver, stmts);
     let res = interpreter.interpret(true).await;
 
