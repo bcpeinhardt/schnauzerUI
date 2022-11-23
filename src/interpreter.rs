@@ -397,13 +397,14 @@ impl Interpreter {
                 return self.set_curr_elem(found_elem).await;
             }
 
-            // Try to find an element by it's id
-            if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().first().await {
-                return self.set_curr_elem(found_elem).await;
-            }
-
-            // Try to find an element by it's name
-            if let Ok(found_elem) = self.driver.query(By::Name(&locator)).nowait().first().await {
+            // Try to find the element by partial text
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::XPath(&format!("//*[contains(text(), '{}')]", locator)))
+                .nowait()
+                .first()
+                .await
+            {
                 return self.set_curr_elem(found_elem).await;
             }
 
@@ -415,6 +416,16 @@ impl Interpreter {
                 .first()
                 .await
             {
+                return self.set_curr_elem(found_elem).await;
+            }
+
+            // Try to find an element by it's id
+            if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().first().await {
+                return self.set_curr_elem(found_elem).await;
+            }
+
+            // Try to find an element by it's name
+            if let Ok(found_elem) = self.driver.query(By::Name(&locator)).nowait().first().await {
                 return self.set_curr_elem(found_elem).await;
             }
 

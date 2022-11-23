@@ -26,9 +26,10 @@ The locate command uses precedence to determine how to use the provided locator.
 - If there is an input element whose placeholder matches the provided value, will locate the input
 - If there is a label which precedes an input whose text matches the provided value, will locate the input
 - If there is an element whose text matches the provided value, will locate the element
+- If there is an element whose text contains the provided value, will locate the element
+- If there is an element whose title matches the provided value, will locate the element 
 - If there is an element whose id matches the provided value, will locate the element
 - If there is an element whose name matches the provided value, will locate the element
-- If there is an element whose title matches the provided value, will locate the element 
 - If there is an element which has a class that matches the provided value, will locate the element
 - If none of these locate the element, the provided value will be used as an xpath to locate the element.
 

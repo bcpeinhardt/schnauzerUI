@@ -9,6 +9,11 @@
 //!
 //! SchnauzerUI is under active development, the progress of which is being recorded as a
 //! [youtube video series](https://www.youtube.com/playlist?list=PLK0mRy_gymKMLPlQ-ZAYfpBzXWjK7W9ER).
+//! 
+//! TODO:
+//! - [ ] Create install script which installs all dependencies
+//! - [ ] CLI needs to handle running background webdriver processes (can opt out to deploy
+//! on existing infra)
 //!
 //! # Running the tests
 //! Before running the tests you will need firefox and geckodriver installed and in your path.
