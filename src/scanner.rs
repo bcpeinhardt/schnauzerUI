@@ -12,6 +12,7 @@ pub enum TokenType {
     ReadTo,
     Url,
     Press,
+    Chill,
 
     // Literals (the associated string is the string literal)
     String(String),
@@ -73,6 +74,7 @@ impl std::fmt::Display for TokenType {
             TokenType::Url => "url",
             TokenType::Comment(s) => s,
             TokenType::Press => "press",
+            TokenType::Chill => "chill",
         };
 
         write!(f, "{}", lexeme)

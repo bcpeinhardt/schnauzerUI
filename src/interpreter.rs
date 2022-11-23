@@ -88,6 +88,8 @@ impl Interpreter {
 
         while let Some(stmt) = self.stmts.pop() {
             self.log_cmd(&stmt.to_string());
+
+            // Execute the statement
             match self.execute_stmt(stmt).await {
                 Ok(_) => { /* Just keep swimming */ }
                 Err((e, sev)) => match sev {
@@ -267,7 +269,19 @@ impl Interpreter {
             Cmd::ReadTo(cp) => self.read_to(cp).await,
             Cmd::Url(url) => self.url_cmd(url).await,
             Cmd::Press(cp) => self.press(cp).await,
+            Cmd::Chill(cp) => self.chill(cp).await,
         }
+    }
+
+    pub async fn chill(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+        let time_to_wait = match self.resolve(cp)?.parse::<u64>() {
+            Ok(time) => time,
+            _ => return Err(self.error("Could not parse time to wait as integer.")),
+        };
+
+        tokio::time::sleep(tokio::time::Duration::from_secs(time_to_wait)).await;
+
+        Ok(())
     }
 
     pub async fn press(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {

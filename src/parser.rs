@@ -98,6 +98,9 @@ pub enum Cmd {
     /// Parses the cmd param as a key to press.
     /// Todo: Need a better strategy for handling keyboard input
     Press(CmdParam),
+
+    /// Pauses test execution for the provided number of seconds
+    Chill(CmdParam),
 }
 
 impl std::fmt::Display for Cmd {
@@ -112,6 +115,7 @@ impl std::fmt::Display for Cmd {
             Cmd::ReadTo(cp) => write!(f, "read-to {}", cp),
             Cmd::Url(cp) => write!(f, "url {}", cp),
             Cmd::Press(cp) => write!(f, "press {}", cp),
+            Cmd::Chill(cp) => write!(f, "chill {}", cp),
         }
     }
 }
@@ -282,7 +286,10 @@ impl Parser {
             self.parse_cmd_param().map(|cp| Cmd::Url(cp))
         } else if self.advance_on(TokenType::Press).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Press(cp))
-        } else {
+        } else if self.advance_on(TokenType::Chill).is_some() {
+            self.parse_cmd_param().map(|cp| Cmd::Chill(cp))
+        } 
+        else {
             let token = self.advance_on_any();
             match token.token_type {
                 TokenType::Click => Ok(Cmd::Click),
