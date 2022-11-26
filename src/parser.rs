@@ -288,8 +288,7 @@ impl Parser {
             self.parse_cmd_param().map(|cp| Cmd::Press(cp))
         } else if self.advance_on(TokenType::Chill).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Chill(cp))
-        } 
-        else {
+        } else {
             let token = self.advance_on_any();
             match token.token_type {
                 TokenType::Click => Ok(Cmd::Click),

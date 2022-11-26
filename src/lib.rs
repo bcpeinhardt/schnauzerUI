@@ -9,7 +9,7 @@
 //!
 //! SchnauzerUI is under active development, the progress of which is being recorded as a
 //! [youtube video series](https://www.youtube.com/playlist?list=PLK0mRy_gymKMLPlQ-ZAYfpBzXWjK7W9ER).
-//! 
+//!
 //! TODO:
 //! - [ ] Create install script which installs all dependencies
 //! - [ ] CLI needs to handle running background webdriver processes (can opt out to deploy
@@ -56,7 +56,6 @@ pub async fn run(
     file_name: String,
     driver: WebDriver,
 ) -> WebDriverResult<bool> {
-
     // Tokenize
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
@@ -96,7 +95,7 @@ pub async fn run_no_log(code: String, driver: WebDriver) -> WebDriverResult<bool
     interpreter.interpret(true).await
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SupportedBrowser {
     FireFox,
     Chrome,

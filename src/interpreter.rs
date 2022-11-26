@@ -312,7 +312,7 @@ impl Interpreter {
     pub fn try_again(&mut self) {
         self.tried_again = true;
         self.stmts.push(Stmt::SetTryAgainFieldToFalse);
-        
+
         // This would be more efficient with some kind of mem_swap type function.
         self.stmts
             .append(&mut self.stmts_since_last_error_handling.clone());

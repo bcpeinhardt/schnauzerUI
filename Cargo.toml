@@ -12,16 +12,23 @@ path = "src/lib.rs"
 name = "sui"
 path = "src/bin/cli.rs"
 
+[[bin]]
+name = "suigui"
+path = "src/bin/gui.rs"
+
 [dependencies]
 async-recursion = "1.0.0"
 async_once = "0.2.6"
 chrono = "0.4.22"
 clap = { version = "4.0.8", features = ["derive"] }
+eframe = "0.19.0"
 futures = "0.3.24"
 promptly = "0.3.1"
 thirtyfour = "0.31.0"
 tokio = "1.21.2"
+tracing-subscriber = "0.3.16"
 walkdir = "2.3.2"
+tinyfiledialogs = "3.0"
 
 [dev-dependencies]
 lazy_static = "1.4.0"
