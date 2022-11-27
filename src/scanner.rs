@@ -139,6 +139,7 @@ impl Scanner {
                 continue;
             }
 
+            // Comments
             if stmt.trim().starts_with("#") {
                 self.tokens
                     .push(self.token(TokenType::Comment(stmt.to_owned())));
@@ -146,12 +147,14 @@ impl Scanner {
                 continue;
             }
 
+            // Regular tokens
             for item in stmt.trim().split(' ') {
                 if let Some(token) = self.resolve_token(item) {
                     self.tokens.push(token);
                 }
             }
 
+            // End of line token
             self.tokens.push(self.token(TokenType::Eol));
         }
 

@@ -50,6 +50,22 @@ use parser::Parser;
 use scanner::Scanner;
 use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
 
+pub struct Runner {
+    driver: WebDriver,
+}
+
+impl Runner {
+    pub async fn new(config: WebDriverConfig) -> WebDriverResult<Self> {
+        let driver = new_driver(config).await?;
+        Ok(Self { driver })
+    }
+
+    pub async fn scan(&mut self, code: String) {
+        let mut scanner = Scanner::from_src(code);
+        let tokens = scanner.scan();
+    }
+}
+
 pub async fn run(
     code: String,
     mut output_path: PathBuf,
