@@ -162,9 +162,8 @@ impl Interpreter {
                     self.set_variable(sv);
                     Ok(())
                 }
-                Stmt::Comment(s) => {
-                    // Comments are simply added to the report log.
-                    self.log_cmd(&s);
+                Stmt::Comment(_) => {
+                    // Comments are simply added to the report log, so we just ignore them
                     Ok(())
                 }
                 Stmt::CatchErr(_) => {
