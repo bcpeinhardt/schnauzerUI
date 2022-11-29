@@ -72,6 +72,8 @@ pub enum Cmd {
     /// The associated string is the provided locator argument.
     Locate(CmdParam),
 
+    LocateNoScroll(CmdParam),
+
     /// Command for typing text into some web element.
     /// The associated string is the provided text.
     Type(CmdParam),
@@ -116,6 +118,8 @@ impl std::fmt::Display for Cmd {
             Cmd::Url(cp) => write!(f, "url {}", cp),
             Cmd::Press(cp) => write!(f, "press {}", cp),
             Cmd::Chill(cp) => write!(f, "chill {}", cp),
+            Cmd::LocateNoScroll(cp) => write!(f, "locate-no-scroll {}", cp),
+            
         }
     }
 }
@@ -268,6 +272,8 @@ impl Parser {
     pub fn parse_cmd(&mut self) -> Result<Cmd, String> {
         if self.advance_on(TokenType::Locate).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Locate(cp))
+        } else if self.advance_on(TokenType::LocateNoScroll).is_some() {
+            self.parse_cmd_param().map(|cp| Cmd::LocateNoScroll(cp))
         } else if self.advance_on(TokenType::Type).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Type(cp))
         } else if self.advance_on(TokenType::ReadTo).is_some() {

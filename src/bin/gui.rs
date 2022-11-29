@@ -1,26 +1,35 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::process::Child;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use std::{path::PathBuf, process::Command};
 
 use eframe::egui;
+use webdriver_install::Driver;
 
-use schnauzer_ui::{SupportedBrowser, WebDriverConfig, new_driver};
+use schnauzer_ui::{SupportedBrowser, WebDriverConfig, new_driver, Runner};
 use thirtyfour::support::block_on;
 
-pub enum Task {}
-pub enum TaskResult {}
 
 fn main() {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
+    // Download the updated drivers
+    Driver::Chrome.install().expect("Could not update chromedriver");
+    Driver::Gecko.install().expect("Could not update geckodriver");
+
+    
+    let driver_process = Command::new("chromedriver").spawn().expect("Could not start chromedriver");
+    
+
+    // Run the GUI
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "Schnauzer UI",
         options,
-        Box::new(|_cc| Box::new(SuiGui::default())),
+        Box::new(|_cc| Box::new(SuiGui::new(driver_process))),
     );
 }
 
@@ -30,13 +39,12 @@ struct SuiGui {
     filepath: Option<PathBuf>,
     folderpath: Option<PathBuf>,
     config: WebDriverConfig,
-    task_sender: Sender<Task>,
-    task_receiver: Receiver<Task>,
+    runner: Option<Runner>,
+    driver_process: Child
 }
 
-impl Default for SuiGui {
-    fn default() -> Self {
-        let (task_sender, task_receiver) = channel();
+impl SuiGui {
+    pub fn new(driver_process: Child) -> Self {
         Self {
             title: "Schnauzer UI",
             run_mode: RunMode::Repl,
@@ -47,8 +55,8 @@ impl Default for SuiGui {
                 headless: false,
                 browser: SupportedBrowser::Chrome,
             },
-            task_sender,
-            task_receiver,
+            runner: None,
+            driver_process
         }
     }
 }
@@ -108,17 +116,14 @@ impl eframe::App for SuiGui {
                 }
 
                 if ui.button("Start").clicked() {
-                    println!("Running the app");
+                    // Then run the driver
+                    self.runner = Some(Runner::new(self.config).expect("Could not start browser"));
+                }
 
-                    // Lets just try to get this to launch a browser
-
-                    // First, start webdriver process
-                    let geckodriver_process = Command::new("chromedriver").spawn().expect("Could not start chromedriver");
-
-                    // No, this should launch the driver
-                    let driver = block_on(async {
-                        new_driver(self.config).await
-                    });
+                if ui.button("End").clicked() {
+                    if let Some(ref mut runner) = self.runner {
+                        runner.close().expect("Could not close browser");
+                    }
                 }
             })
         });

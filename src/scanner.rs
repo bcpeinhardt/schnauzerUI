@@ -3,6 +3,7 @@
 pub enum TokenType {
     // Commands
     Locate,
+    LocateNoScroll,
     Type,
     Click,
     Refresh,
@@ -75,6 +76,8 @@ impl std::fmt::Display for TokenType {
             TokenType::Comment(s) => s,
             TokenType::Press => "press",
             TokenType::Chill => "chill",
+            TokenType::LocateNoScroll => "locate-no-scroll",
+            
         };
 
         write!(f, "{}", lexeme)
@@ -186,6 +189,7 @@ impl Scanner {
             "url" => Some(self.token(TokenType::Url)),
             "press" => Some(self.token(TokenType::Press)),
             "chill" => Some(self.token(TokenType::Chill)),
+            "locate-no-scroll" => Some(self.token(TokenType::LocateNoScroll)),
 
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")

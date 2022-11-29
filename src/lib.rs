@@ -48,23 +48,26 @@ use std::path::PathBuf;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
-use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
+use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver, support::block_on};
 
 pub struct Runner {
     driver: WebDriver,
 }
 
 impl Runner {
-    pub async fn new(config: WebDriverConfig) -> WebDriverResult<Self> {
-        let driver = new_driver(config).await?;
-        Ok(Self { driver })
+    pub fn new(config: WebDriverConfig) -> WebDriverResult<Self> {
+        block_on(async {
+            let driver = new_driver(config).await?;
+            Ok(Self { driver })
+        })
     }
 
-    pub async fn scan(&mut self, code: String) {
-        let mut scanner = Scanner::from_src(code);
-        let tokens = scanner.scan();
+    pub fn close(&self) -> WebDriverResult<()> {
+        block_on(self.driver.close_window())
     }
 }
+
+
 
 pub async fn run(
     code: String,
@@ -117,7 +120,7 @@ pub enum SupportedBrowser {
     Chrome,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WebDriverConfig {
     pub port: usize,
     pub headless: bool,

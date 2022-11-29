@@ -129,10 +129,12 @@ impl Interpreter {
 
     /// Takes a webelement, attempts to scroll the element into view, and then sets
     /// the element as currently in focus. Subsequent commands will be executed against this element.
-    async fn set_curr_elem(&mut self, elem: WebElement) -> RuntimeResult<(), String> {
-        elem.scroll_into_view()
+    async fn set_curr_elem(&mut self, elem: WebElement, scroll_into_view: bool) -> RuntimeResult<(), String> {
+        if scroll_into_view {
+            elem.scroll_into_view()
             .await
             .map_err(|_| self.error("Error scrolling web element into view"))?;
+        }
         self.curr_elem = Some(elem);
         Ok(())
     }
@@ -256,8 +258,13 @@ impl Interpreter {
     }
 
     pub async fn execute_cmd(&mut self, cmd: Cmd) -> RuntimeResult<(), String> {
+        // Adding a default wait of 1 second between commands because it just mimics human timing a lot
+        // better. Will add a flag to turn this off.
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
         match cmd {
-            Cmd::Locate(locator) => self.locate(locator).await,
+            Cmd::Locate(locator) => self.locate(locator, true).await,
+            Cmd::LocateNoScroll(locator) => self.locate(locator, false).await,
             Cmd::Type(txt) => self.type_into_elem(txt).await,
             Cmd::Click => self.click().await,
             Cmd::Refresh => self.refresh().await,
@@ -374,7 +381,7 @@ impl Interpreter {
 
     /// Attempt to locate an element on the page, testing the locator in the following precedence
     /// (placeholder, preceding label, text, id, name, title, class, xpath)
-    pub async fn locate(&mut self, locator: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn locate(&mut self, locator: CmdParam, scroll_into_view: bool) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
         for wait in [0, 5, 10] {
             // Locate an element by its placeholder
@@ -385,7 +392,7 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Locate an input element by a preceding label
@@ -397,7 +404,7 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find the element by its text
@@ -408,7 +415,7 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find the element by partial text
@@ -419,7 +426,7 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find an element by it's title
@@ -430,17 +437,17 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find an element by it's id
             if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().first().await {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find an element by it's name
             if let Ok(found_elem) = self.driver.query(By::Name(&locator)).nowait().first().await {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find an element by it's class
@@ -451,7 +458,7 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find an element by xpath
@@ -462,7 +469,7 @@ impl Interpreter {
                 .first()
                 .await
             {
-                return self.set_curr_elem(found_elem).await;
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
         }
 

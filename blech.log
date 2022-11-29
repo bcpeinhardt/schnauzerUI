@@ -1,0 +1,9 @@
+Info: url "https://www.databyrd.com"
+Info: locate "Login" and click
+Info: locate "Email" and type "ben.peinhardt@siteimpact.com"
+Info: locate "Password" and type "m4uw2yp6" and press "Enter"
+Info: locate "Search Clients" and type "Eagle"
+Info: locate "View" and click
+Info: locate-no-scroll "Make a report" and click
+Info: locate-no-scroll "//button/span[contains(text(), 'Create Report')]/.." and click
+Info: locate-no-scroll "Ok" and click

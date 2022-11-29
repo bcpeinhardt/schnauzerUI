@@ -29,6 +29,7 @@ tokio = "1.21.2"
 tracing-subscriber = "0.3.16"
 walkdir = "2.3.2"
 tinyfiledialogs = "3.0"
+webdriver-install = "0.3.2"
 
 [dev-dependencies]
 lazy_static = "1.4.0"
