@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, collections::HashMap};
 
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
@@ -47,6 +47,10 @@ struct Cli {
     /// Which browser to use. Supports "firefox" or "chrome".
     #[arg(short, long)]
     browser: String,
+
+    /// Path to an excel file which holds variable values for test runs
+    #[arg(short = 'x', long)]
+    datatable: Option<PathBuf>
 }
 
 #[tokio::main]
@@ -60,7 +64,31 @@ async fn main() {
         headless,
         port,
         browser,
+        datatable
     } = Cli::parse();
+
+    // If there's a datatable passed in, try parsing as vector of hashmaps.
+    // Hot damn it's ugly but it works.
+    // TODO: refactor later
+    let dt = if let Some(path) = datatable {
+        // Creat a CSV reader
+        let mut rdr = csv::Reader::from_path(path).expect("Could not read csv file");
+        let headers = rdr.headers().expect("Could not read headers from csv file").iter().map(|s| s.trim().to_owned()).collect::<Vec<_>>();
+        let mut variable_runs = vec![];
+        for (i, record) in rdr.records().enumerate() {
+            let mut hm: HashMap<String, String> = HashMap::new();
+            let mut record = record.expect(&format!("Could not parse record {}", i));
+            record.trim(); // This is more useful than allowing leading and trailing whitespace
+            for (j, item) in record.iter().enumerate() {
+                hm.insert(headers.get(j).expect(&format!("Missing header")).to_owned(), item.to_owned());
+            }
+            variable_runs.push(hm);
+        }
+        println!("{:?}", variable_runs);
+        Some(variable_runs)
+    } else {
+        None
+    };
 
     let browser = match browser.as_str() {
         "chrome" => SupportedBrowser::Chrome,
@@ -130,7 +158,7 @@ async fn main() {
             let output = output_dir
                 .or(filepath.parent().map(|f| f.to_path_buf()))
                 .unwrap_or(".".into());
-            run_file(filepath, output, driver_config).await
+            run_file(filepath, output, driver_config, dt).await
         }
 
         // They provided the repl flag, so run in repl mode.
@@ -151,6 +179,7 @@ async fn run_file(
     input_filepath: PathBuf,
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
+    dt: Option<Vec<HashMap<String, String>>>
 ) {
     // Read in the file
     let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(
@@ -170,7 +199,7 @@ async fn run_file(
         .expect("Could not launch driver");
 
     // Run the code
-    run(code, output_filepath, file_name, driver)
+    run(code, output_filepath, file_name, driver, dt)
         .await
         .expect("Oh no!");
 }
@@ -192,7 +221,7 @@ async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>, driver_config:
                     .clone()
                     .or(entry.clone().path().parent().map(|p| p.to_path_buf()))
                     .unwrap_or(".".into());
-                run_file(entry.into_path(), op, driver_config).await;
+                run_file(entry.into_path(), op, driver_config, None).await;
             }
         }));
     }

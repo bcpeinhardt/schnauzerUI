@@ -45,6 +45,7 @@ pub mod scanner;
 
 use std::path::PathBuf;
 
+use std::collections::HashMap;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
@@ -62,19 +63,43 @@ impl Runner {
         })
     }
 
-    pub fn close(&self) -> WebDriverResult<()> {
+    pub fn scan(&self) {
+        
+    }
+
+    pub fn close(&mut self) -> WebDriverResult<()> {
         block_on(self.driver.close_window())
     }
 }
 
+fn preprocess(code: String, dt: Vec<HashMap<String, String>>) -> String {
+    let mut new_code = String::new();
+    for (i, hm) in dt.into_iter().enumerate() {
+        let mut section = code.clone();
+        for (key, value) in hm {
+            section = section.replace(&format!("<{}>", key), &value);
+        }
+        new_code.push_str("\n");
+        new_code.push_str(&section);
+        new_code.push_str("\n");
+    }
+    new_code
+}
 
 
 pub async fn run(
-    code: String,
+    mut code: String,
     mut output_path: PathBuf,
     file_name: String,
     driver: WebDriver,
+    dt: Option<Vec<HashMap<String, String>>>
 ) -> WebDriverResult<bool> {
+
+    // Preprocess the code to replace values from datatable
+    if let Some(dt) = dt {
+        code = preprocess(code, dt);
+    }
+
     // Tokenize
     let mut scanner = Scanner::from_src(code);
     let tokens = scanner.scan();
