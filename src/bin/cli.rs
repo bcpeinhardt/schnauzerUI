@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 
 use schnauzer_ui::{
     interpreter::Interpreter, new_driver, parser::Stmt, run, scanner::Scanner, SupportedBrowser,
-    WebDriverConfig,
+    WebDriverConfig, read_csv,
 };
 
 /// SchnauzerUI is a DSL for automated web UI testing.
@@ -41,12 +41,14 @@ struct Cli {
     headless: bool,
 
     /// The port that the Selenium standalone grid is running on.
+    /// Defaults to 4444.
     #[arg(short, long)]
-    port: usize,
+    port: Option<usize>,
 
     /// Which browser to use. Supports "firefox" or "chrome".
+    /// Defaults to chrome.
     #[arg(short, long)]
-    browser: String,
+    browser: Option<String>,
 
     /// Path to an excel file which holds variable values for test runs
     #[arg(short = 'x', long)]
@@ -67,29 +69,11 @@ async fn main() {
         datatable
     } = Cli::parse();
 
-    // If there's a datatable passed in, try parsing as vector of hashmaps.
-    // Hot damn it's ugly but it works.
-    // TODO: refactor later
-    let dt = if let Some(path) = datatable {
-        // Creat a CSV reader
-        let mut rdr = csv::Reader::from_path(path).expect("Could not read csv file");
-        let headers = rdr.headers().expect("Could not read headers from csv file").iter().map(|s| s.trim().to_owned()).collect::<Vec<_>>();
-        let mut variable_runs = vec![];
-        for (i, record) in rdr.records().enumerate() {
-            let mut hm: HashMap<String, String> = HashMap::new();
-            let mut record = record.expect(&format!("Could not parse record {}", i));
-            record.trim(); // This is more useful than allowing leading and trailing whitespace
-            for (j, item) in record.iter().enumerate() {
-                hm.insert(headers.get(j).expect(&format!("Missing header")).to_owned(), item.to_owned());
-            }
-            variable_runs.push(hm);
-        }
-        println!("{:?}", variable_runs);
-        Some(variable_runs)
-    } else {
-        None
-    };
+    let dt = datatable.map(|path| read_csv(path));
 
+    let port = port.unwrap_or(4444);
+
+    let browser = browser.unwrap_or("chrome".to_owned());
     let browser = match browser.as_str() {
         "chrome" => SupportedBrowser::Chrome,
         "firefox" => SupportedBrowser::FireFox,

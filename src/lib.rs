@@ -51,25 +51,20 @@ use parser::Parser;
 use scanner::Scanner;
 use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver, support::block_on};
 
-pub struct Runner {
-    driver: WebDriver,
-}
-
-impl Runner {
-    pub fn new(config: WebDriverConfig) -> WebDriverResult<Self> {
-        block_on(async {
-            let driver = new_driver(config).await?;
-            Ok(Self { driver })
-        })
+pub fn read_csv(path: PathBuf) -> Vec<HashMap<String, String>> {
+    let mut rdr = csv::Reader::from_path(path).expect("Could not read csv file");
+    let headers = rdr.headers().expect("Could not read headers from csv file").iter().map(|s| s.trim().to_owned()).collect::<Vec<_>>();
+    let mut variable_runs = vec![];
+    for (i, record) in rdr.records().enumerate() {
+        let mut hm: HashMap<String, String> = HashMap::new();
+        let mut record = record.expect(&format!("Could not parse record {}", i));
+        record.trim(); // This is more useful than allowing leading and trailing whitespace
+        for (j, item) in record.iter().enumerate() {
+            hm.insert(headers.get(j).expect(&format!("Missing header")).to_owned(), item.to_owned());
+        }
+        variable_runs.push(hm);
     }
-
-    pub fn scan(&self) {
-        
-    }
-
-    pub fn close(&mut self) -> WebDriverResult<()> {
-        block_on(self.driver.close_window())
-    }
+    variable_runs
 }
 
 fn preprocess(code: String, dt: Vec<HashMap<String, String>>) -> String {
@@ -79,9 +74,11 @@ fn preprocess(code: String, dt: Vec<HashMap<String, String>>) -> String {
         for (key, value) in hm {
             section = section.replace(&format!("<{}>", key), &value);
         }
-        new_code.push_str("\n");
+        new_code.push_str("\n\n");
+        new_code.push_str(&format!("# Test Run {}", i));
+        new_code.push_str("\n\n");
         new_code.push_str(&section);
-        new_code.push_str("\n");
+        new_code.push_str("\n\n");
     }
     new_code
 }
@@ -150,6 +147,12 @@ pub struct WebDriverConfig {
     pub port: usize,
     pub headless: bool,
     pub browser: SupportedBrowser,
+}
+
+impl Default for WebDriverConfig {
+    fn default() -> Self {
+        Self { port: 4444, headless: false, browser: SupportedBrowser::Chrome }
+    }
 }
 
 pub async fn new_driver(
