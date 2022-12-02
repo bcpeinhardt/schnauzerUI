@@ -4,9 +4,10 @@
 
 ### Comment
 A comment statement is the simplest statement in Schnauzer UI. Create a comment by typing `#` and then the text you'd like.
-It doesn't do anything except help keep scripts organized. Comments are automatically added to the test run log for reference. It's good practice to separate chuncks of a Schnauzer UI script with comments to keep it readable.
+It doesn't do anything except help keep scripts organized. Comments are automatically added to the test run log for reference. It's good practice to separate chunks of a Schnauzer UI script with comments to keep it readable.
 
 Ex. Commenting a chunk of code.
+
 `# This part of the script performs x action ...`
 
 For programmers: Schnauzer UI doesn't have units of code that can be extracted and reused like "functions".
@@ -26,6 +27,7 @@ A command statement consists of a one or more commands connected by the `and` ke
 the bread and butter of your scripts.
 
 Ex. Locate and click a button
+
 `locate "Submit" and click`
 
 ### If Statement
@@ -33,6 +35,7 @@ An if statement is used for conditional actions. The statement takes a command a
 executes the body only if the command succeeds without error.
 
 Ex. Dismissing a popup.
+
 `if locate "Confirm" then click`
 
 ### Catch Error
@@ -43,6 +46,7 @@ If you don't make use of `catch-error`, scripts will simply exit when they encou
 of testing use cases but not good for RPA use cases).
 
 Ex. Taking a screenshot from a script that reproduces a bug.
+
 `catch-error: screenshot`
 
 # Commands
