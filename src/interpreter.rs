@@ -87,7 +87,9 @@ impl Interpreter {
         self.tried_again = false;
 
         while let Some(stmt) = self.stmts.pop() {
-            self.log_cmd(&stmt.to_string());
+            if !self.had_error {
+                self.log_cmd(&stmt.to_string());
+            }
 
             // Execute the statement
             match self.execute_stmt(stmt).await {

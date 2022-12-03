@@ -1,6 +1,6 @@
 url "https://youtube.com"
 
-locate "Search" and type "Cats"
+locate "Search oops not here" and type "Cats"
 
 press "Enter"
 
