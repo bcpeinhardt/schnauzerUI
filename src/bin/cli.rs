@@ -1,4 +1,7 @@
-use std::{path::{Path, PathBuf}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
@@ -7,8 +10,8 @@ use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
 use walkdir::WalkDir;
 
 use schnauzer_ui::{
-    interpreter::Interpreter, new_driver, parser::Stmt, run, scanner::Scanner, SupportedBrowser,
-    WebDriverConfig, read_csv,
+    interpreter::Interpreter, new_driver, parser::Stmt, read_csv, run, scanner::Scanner,
+    SupportedBrowser, WebDriverConfig,
 };
 
 /// SchnauzerUI is a DSL for automated web UI testing.
@@ -52,7 +55,7 @@ struct Cli {
 
     /// Path to an excel file which holds variable values for test runs
     #[arg(short = 'x', long)]
-    datatable: Option<PathBuf>
+    datatable: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -66,7 +69,7 @@ async fn main() {
         headless,
         port,
         browser,
-        datatable
+        datatable,
     } = Cli::parse();
 
     let dt = datatable.map(|path| read_csv(path));
@@ -163,7 +166,7 @@ async fn run_file(
     input_filepath: PathBuf,
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
-    dt: Option<Vec<HashMap<String, String>>>
+    dt: Option<Vec<HashMap<String, String>>>,
 ) {
     // Read in the file
     let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(

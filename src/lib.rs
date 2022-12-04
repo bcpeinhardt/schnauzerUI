@@ -45,22 +45,30 @@ pub mod scanner;
 
 use std::path::PathBuf;
 
-use std::collections::HashMap;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
-use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver, support::block_on};
+use std::collections::HashMap;
+use thirtyfour::{prelude::WebDriverResult, support::block_on, DesiredCapabilities, WebDriver};
 
 pub fn read_csv(path: PathBuf) -> Vec<HashMap<String, String>> {
     let mut rdr = csv::Reader::from_path(path).expect("Could not read csv file");
-    let headers = rdr.headers().expect("Could not read headers from csv file").iter().map(|s| s.trim().to_owned()).collect::<Vec<_>>();
+    let headers = rdr
+        .headers()
+        .expect("Could not read headers from csv file")
+        .iter()
+        .map(|s| s.trim().to_owned())
+        .collect::<Vec<_>>();
     let mut variable_runs = vec![];
     for (i, record) in rdr.records().enumerate() {
         let mut hm: HashMap<String, String> = HashMap::new();
         let mut record = record.expect(&format!("Could not parse record {}", i));
         record.trim(); // This is more useful than allowing leading and trailing whitespace
         for (j, item) in record.iter().enumerate() {
-            hm.insert(headers.get(j).expect(&format!("Missing header")).to_owned(), item.to_owned());
+            hm.insert(
+                headers.get(j).expect(&format!("Missing header")).to_owned(),
+                item.to_owned(),
+            );
         }
         variable_runs.push(hm);
     }
@@ -83,15 +91,13 @@ fn preprocess(code: String, dt: Vec<HashMap<String, String>>) -> String {
     new_code
 }
 
-
 pub async fn run(
     mut code: String,
     mut output_path: PathBuf,
     file_name: String,
     driver: WebDriver,
-    dt: Option<Vec<HashMap<String, String>>>
+    dt: Option<Vec<HashMap<String, String>>>,
 ) -> WebDriverResult<bool> {
-
     // Preprocess the code to replace values from datatable
     if let Some(dt) = dt {
         code = preprocess(code, dt);
@@ -151,7 +157,11 @@ pub struct WebDriverConfig {
 
 impl Default for WebDriverConfig {
     fn default() -> Self {
-        Self { port: 4444, headless: false, browser: SupportedBrowser::Chrome }
+        Self {
+            port: 4444,
+            headless: false,
+            browser: SupportedBrowser::Chrome,
+        }
     }
 }
 

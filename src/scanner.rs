@@ -77,7 +77,6 @@ impl std::fmt::Display for TokenType {
             TokenType::Press => "press",
             TokenType::Chill => "chill",
             TokenType::LocateNoScroll => "locate-no-scroll",
-            
         };
 
         write!(f, "{}", lexeme)

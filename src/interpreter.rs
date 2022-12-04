@@ -91,10 +91,8 @@ impl Interpreter {
                 self.log_cmd(&stmt.to_string());
             }
 
-            // Execute the statement
-            match self.execute_stmt(stmt).await {
-                Ok(_) => { /* Just keep swimming */ }
-                Err((e, sev)) => match sev {
+            if let Err((e, sev)) = self.execute_stmt(stmt).await {
+                match sev {
                     Severity::Exit => {
                         self.log_err(&e);
                         if close_driver {
@@ -106,7 +104,7 @@ impl Interpreter {
                         self.log_err(&e);
                         self.had_error = true;
                     }
-                },
+                }
             }
         }
 
@@ -131,11 +129,15 @@ impl Interpreter {
 
     /// Takes a webelement, attempts to scroll the element into view, and then sets
     /// the element as currently in focus. Subsequent commands will be executed against this element.
-    async fn set_curr_elem(&mut self, elem: WebElement, scroll_into_view: bool) -> RuntimeResult<(), String> {
+    async fn set_curr_elem(
+        &mut self,
+        elem: WebElement,
+        scroll_into_view: bool,
+    ) -> RuntimeResult<(), String> {
         if scroll_into_view {
             elem.scroll_into_view()
-            .await
-            .map_err(|_| self.error("Error scrolling web element into view"))?;
+                .await
+                .map_err(|_| self.error("Error scrolling web element into view"))?;
         }
         self.curr_elem = Some(elem);
         Ok(())
@@ -382,7 +384,11 @@ impl Interpreter {
 
     /// Attempt to locate an element on the page, testing the locator in the following precedence
     /// (placeholder, preceding label, text, id, name, title, class, xpath)
-    pub async fn locate(&mut self, locator: CmdParam, scroll_into_view: bool) -> RuntimeResult<(), String> {
+    pub async fn locate(
+        &mut self,
+        locator: CmdParam,
+        scroll_into_view: bool,
+    ) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
         for wait in [0, 5, 10] {
             // Locate an element by its placeholder

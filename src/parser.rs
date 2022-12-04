@@ -119,7 +119,6 @@ impl std::fmt::Display for Cmd {
             Cmd::Press(cp) => write!(f, "press {}", cp),
             Cmd::Chill(cp) => write!(f, "chill {}", cp),
             Cmd::LocateNoScroll(cp) => write!(f, "locate-no-scroll {}", cp),
-            
         }
     }
 }
