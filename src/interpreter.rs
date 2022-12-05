@@ -137,7 +137,6 @@ impl Interpreter {
         elem: WebElement,
         scroll_into_view: bool,
     ) -> RuntimeResult<(), String> {
-
         // Scroll the element into view if specified
         if scroll_into_view {
             elem.scroll_into_view()
@@ -158,21 +157,21 @@ impl Interpreter {
                 )
                 .await
                 .map_err(|_| self.error("Error highlighting element"))?;
-        }
 
-        // Remove the border from the previously located element
-        if let Some(ref curr_elem) = self.curr_elem {
-            self.driver
-                .execute(
-                    r#"
+            // Remove the border from the previously located element
+            if let Some(ref curr_elem) = self.curr_elem {
+                self.driver
+                    .execute(
+                        r#"
             arguments[0].style.border = 'none';
             "#,
-                    vec![curr_elem
-                        .to_json()
-                        .map_err(|_| self.error("Error jsonifying element"))?],
-                )
-                .await
-                .map_err(|_| self.error("Error un-highlighting element"))?;
+                        vec![curr_elem
+                            .to_json()
+                            .map_err(|_| self.error("Error jsonifying element"))?],
+                    )
+                    .await
+                    .map_err(|_| self.error("Error un-highlighting element"))?;
+            }
         }
 
         // Set the current element
