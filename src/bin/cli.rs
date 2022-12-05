@@ -56,6 +56,10 @@ struct Cli {
     /// Path to an excel file which holds variable values for test runs
     #[arg(short = 'x', long)]
     datatable: Option<PathBuf>,
+
+    /// Highlight elements which are located to more clearly demonstrate process
+    #[arg(long)]
+    demo: bool,
 }
 
 #[tokio::main]
@@ -70,6 +74,7 @@ async fn main() {
         port,
         browser,
         datatable,
+        demo,
     } = Cli::parse();
 
     let dt = datatable.map(|path| read_csv(path));
@@ -128,7 +133,7 @@ async fn main() {
                 );
                 return;
             }
-            run_dir(dir, output_dir, driver_config).await
+            run_dir(dir, output_dir, driver_config, demo).await
         }
 
         // They provided a filepath, so verify it's a file and just run the given file
@@ -145,7 +150,7 @@ async fn main() {
             let output = output_dir
                 .or(filepath.parent().map(|f| f.to_path_buf()))
                 .unwrap_or(".".into());
-            run_file(filepath, output, driver_config, dt).await
+            run_file(filepath, output, driver_config, dt, demo).await
         }
 
         // They provided the repl flag, so run in repl mode.
@@ -167,6 +172,7 @@ async fn run_file(
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
     dt: Option<Vec<HashMap<String, String>>>,
+    is_demo: bool,
 ) {
     // Read in the file
     let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(
@@ -186,7 +192,7 @@ async fn run_file(
         .expect("Could not launch driver");
 
     // Run the code
-    run(code, output_filepath, file_name, driver, dt)
+    run(code, output_filepath, file_name, driver, dt, is_demo)
         .await
         .expect("Oh no!");
 }
@@ -194,7 +200,12 @@ async fn run_file(
 /// Walks a directory and runs every sui file it finds as schnauzer ui code.
 /// Scripts run concurrently in different threads.
 /// The output directory should default to the directory of the currently running script.
-async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>, driver_config: WebDriverConfig) {
+async fn run_dir(
+    directory: PathBuf,
+    output_dir: Option<PathBuf>,
+    driver_config: WebDriverConfig,
+    is_demo: bool,
+) {
     let mut tests = Vec::new();
     for entry in WalkDir::new(&directory)
         .follow_links(true)
@@ -208,7 +219,7 @@ async fn run_dir(directory: PathBuf, output_dir: Option<PathBuf>, driver_config:
                     .clone()
                     .or(entry.clone().path().parent().map(|p| p.to_path_buf()))
                     .unwrap_or(".".into());
-                run_file(entry.into_path(), op, driver_config, None).await;
+                run_file(entry.into_path(), op, driver_config, None, is_demo).await;
             }
         }));
     }
@@ -222,7 +233,7 @@ async fn repl_loop(
     let driver = new_driver(driver_config)
         .await
         .map_err(|_| "Error starting interpreter and/or browser")?;
-    let mut interpreter = Interpreter::new(driver, vec![]);
+    let mut interpreter = Interpreter::new(driver, vec![], true);
     let mut script_buffer = String::new();
 
     let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())

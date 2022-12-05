@@ -48,11 +48,13 @@ pub struct Interpreter {
     pub log_buffer: String,
 
     pub screenshot_buffer: Vec<Vec<u8>>,
+
+    is_demo: bool,
 }
 
 impl Interpreter {
     /// Constructor for the Interpreter. Registers a webdriver against a standalone selenium grid running at port 4444.
-    pub fn new(driver: WebDriver, stmts: Vec<Stmt>) -> Self {
+    pub fn new(driver: WebDriver, stmts: Vec<Stmt>, is_demo: bool) -> Self {
         let stmts = stmts.into_iter().rev().collect();
 
         Self {
@@ -65,6 +67,7 @@ impl Interpreter {
             tried_again: false,
             log_buffer: String::new(),
             screenshot_buffer: vec![],
+            is_demo,
         }
     }
 
@@ -134,11 +137,45 @@ impl Interpreter {
         elem: WebElement,
         scroll_into_view: bool,
     ) -> RuntimeResult<(), String> {
+
+        // Scroll the element into view if specified
         if scroll_into_view {
             elem.scroll_into_view()
                 .await
                 .map_err(|_| self.error("Error scrolling web element into view"))?;
         }
+
+        // Give the located element a purple border if in demo mode
+        if self.is_demo {
+            self.driver
+                .execute(
+                    r#"
+            arguments[0].style.border = '5px solid purple';
+            "#,
+                    vec![elem
+                        .to_json()
+                        .map_err(|_| self.error("Error jsonifying element"))?],
+                )
+                .await
+                .map_err(|_| self.error("Error highlighting element"))?;
+        }
+
+        // Remove the border from the previously located element
+        if let Some(ref curr_elem) = self.curr_elem {
+            self.driver
+                .execute(
+                    r#"
+            arguments[0].style.border = 'none';
+            "#,
+                    vec![curr_elem
+                        .to_json()
+                        .map_err(|_| self.error("Error jsonifying element"))?],
+                )
+                .await
+                .map_err(|_| self.error("Error un-highlighting element"))?;
+        }
+
+        // Set the current element
         self.curr_elem = Some(elem);
         Ok(())
     }

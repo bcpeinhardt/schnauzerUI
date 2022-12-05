@@ -97,6 +97,7 @@ pub async fn run(
     file_name: String,
     driver: WebDriver,
     dt: Option<Vec<HashMap<String, String>>>,
+    is_demo: bool,
 ) -> WebDriverResult<bool> {
     // Preprocess the code to replace values from datatable
     if let Some(dt) = dt {
@@ -111,7 +112,7 @@ pub async fn run(
     let stmts = Parser::new().parse(tokens);
 
     // Interpret
-    let mut interpreter = Interpreter::new(driver, stmts);
+    let mut interpreter = Interpreter::new(driver, stmts, is_demo);
     let res = interpreter.interpret(true).await;
 
     output_path.push(format!("{}.log", file_name));
@@ -138,7 +139,7 @@ pub async fn run_no_log(code: String, driver: WebDriver) -> WebDriverResult<bool
     let tokens = scanner.scan();
 
     let stmts = Parser::new().parse(tokens);
-    let mut interpreter = Interpreter::new(driver, stmts);
+    let mut interpreter = Interpreter::new(driver, stmts, false);
     interpreter.interpret(true).await
 }
 
