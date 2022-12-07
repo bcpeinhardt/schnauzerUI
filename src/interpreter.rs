@@ -160,7 +160,10 @@ impl Interpreter {
 
             // Remove the border from the previously located element
             if let Some(ref curr_elem) = self.curr_elem {
-                self.driver
+                
+                // For now we are explicitly ignoring the error, because if the un-highlight fails
+                // it could simply be that the element has become stale.
+                let _ = self.driver
                     .execute(
                         r#"
             arguments[0].style.border = 'none';
@@ -169,8 +172,7 @@ impl Interpreter {
                             .to_json()
                             .map_err(|_| self.error("Error jsonifying element"))?],
                     )
-                    .await
-                    .map_err(|_| self.error("Error un-highlighting element"))?;
+                    .await;
             }
         }
 
