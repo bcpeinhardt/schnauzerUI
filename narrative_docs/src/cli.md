@@ -41,7 +41,7 @@ The SchnauzerUI cli supports something called "REPL driven development". With a 
 on port 4444, running `sui -i` or `sui --repl` will launch a browser and prompt you for the name of
 a test. Give your test a name then it will ask for a command.
 
-Most UI testing tools for you to make a change and rerun at least that test. If you have a more complex setup,
+With most UI testing tools, making a chnage requires rerunning at least the entire test. If you have a more complex setup,
 you may find yourself rerunning 15 minutes worth of tests to validate one change. SchnauzerUI tries to be much 
 more productive then that.
 

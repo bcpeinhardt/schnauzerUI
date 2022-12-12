@@ -24,7 +24,7 @@ test authoring (id, name, title, class, xpath)
 
 Once an element is in focus (i.e. located), any subsequent commands will be executed against it. Commands relating
 to web elements include `click`, `type`, and `read-to` (a command for storing the text of a web element as a variable).
-The complete lis of statements and commands lives [here](statements_and_commands.md)
+The complete list of statements and commands lives [here](statements_and_commands.md)
 
 ## Error Handling
 UI tests can be brittle. Sometimes you simply want to write a long

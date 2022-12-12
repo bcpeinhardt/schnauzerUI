@@ -41,7 +41,7 @@ Ex. Dismissing a popup.
 ### Catch Error
 Schnauzer UI provides the `catch-error` statement for simple error handling. Whenever a command
 produces an error (except in an if condition), the script will jump ahead to the nearest `catch-error:`
-token. This lets you handle an error how you want. Some commands to key in mind are `screenshot`, `refresh`, and `try-again`.
+token. This lets you handle an error how you want. Some commands to keep in mind are `screenshot`, `refresh`, and `try-again`.
 If you don't make use of `catch-error`, scripts will simply exit when they encounter errors (which is good for a lot
 of testing use cases but not good for RPA use cases).
 
