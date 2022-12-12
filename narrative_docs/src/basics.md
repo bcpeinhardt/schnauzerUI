@@ -50,3 +50,6 @@ and try the previous commands again without the test simply failing. The test "f
 is still reported (and a screenshot is taken), but the rest of the test executes.
 (Note: This does not risk getting caught in a loop. The `try-again` command will only re-execute
 the same code once.)
+
+You can write SchnauzerUI scripts directly in a .sui file, but the best way to write the script is using
+the REPL. To learn the different ways to develop tests, see [the cli guide](cli.md)
