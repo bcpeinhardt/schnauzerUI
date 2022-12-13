@@ -1,16 +1,12 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
-use promptly::{prompt, prompt_default, prompt_opt};
-use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
+use promptly::{prompt, prompt_default};
 use walkdir::WalkDir;
 
 use schnauzer_ui::{
-    interpreter::Interpreter, new_driver, parser::Stmt, read_csv, run, scanner::Scanner,
+    datatable::read_csv, interpreter::Interpreter, new_driver, parser::Stmt, run, scanner::Scanner,
     SupportedBrowser, WebDriverConfig,
 };
 

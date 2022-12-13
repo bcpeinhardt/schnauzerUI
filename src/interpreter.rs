@@ -160,10 +160,10 @@ impl Interpreter {
 
             // Remove the border from the previously located element
             if let Some(ref curr_elem) = self.curr_elem {
-                
                 // For now we are explicitly ignoring the error, because if the un-highlight fails
                 // it could simply be that the element has become stale.
-                let _ = self.driver
+                let _ = self
+                    .driver
                     .execute(
                         r#"
             arguments[0].style.border = 'none';

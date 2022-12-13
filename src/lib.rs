@@ -1,11 +1,11 @@
 //! SchnauzerUI is a human readable DSL for performing automated UI testing in the browser.
 //! The main goal of SchnauzerUI is to increase stakeholder visibility and participation in
-//! automated Quality Assurance testing. 
-//! 
+//! automated Quality Assurance testing.
+//!
 //! Rather than providing a shim to underling code written by
 //! a QA engineer (see [Cucumber](https://cucumber.io/)), SchnauzerUI is the only source of truth for a
 //! test's execution. In this way, SchnauzerUI aims to provide a test report you can trust.
-//! 
+//!
 //! SchnauzerUI is most comparable to and could serve as an open source replacement for [testRigor](https://testrigor.com/)
 //!
 //! If you would like to try it out, you can start with the [narrative docs](https://bcpeinhardt.github.io/schnauzerUI/)
@@ -34,6 +34,7 @@
 //! From there, it should be a simple `cargo test`. The tests will take a moment to execute,
 //! as they will launch browsers to run in.
 
+pub mod datatable;
 pub mod environment;
 pub mod interpreter;
 pub mod parser;
@@ -41,51 +42,12 @@ pub mod scanner;
 
 use std::path::PathBuf;
 
+use datatable::preprocess;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
 use std::collections::HashMap;
-use thirtyfour::{prelude::WebDriverResult, support::block_on, DesiredCapabilities, WebDriver};
-
-pub fn read_csv(path: PathBuf) -> Vec<HashMap<String, String>> {
-    let mut rdr = csv::Reader::from_path(path).expect("Could not read csv file");
-    let headers = rdr
-        .headers()
-        .expect("Could not read headers from csv file")
-        .iter()
-        .map(|s| s.trim().to_owned())
-        .collect::<Vec<_>>();
-    let mut variable_runs = vec![];
-    for (i, record) in rdr.records().enumerate() {
-        let mut hm: HashMap<String, String> = HashMap::new();
-        let mut record = record.expect(&format!("Could not parse record {}", i));
-        record.trim(); // This is more useful than allowing leading and trailing whitespace
-        for (j, item) in record.iter().enumerate() {
-            hm.insert(
-                headers.get(j).expect(&format!("Missing header")).to_owned(),
-                item.to_owned(),
-            );
-        }
-        variable_runs.push(hm);
-    }
-    variable_runs
-}
-
-fn preprocess(code: String, dt: Vec<HashMap<String, String>>) -> String {
-    let mut new_code = String::new();
-    for (i, hm) in dt.into_iter().enumerate() {
-        let mut section = code.clone();
-        for (key, value) in hm {
-            section = section.replace(&format!("<{}>", key), &value);
-        }
-        new_code.push_str("\n\n");
-        new_code.push_str(&format!("# Test Run {}", i));
-        new_code.push_str("\n\n");
-        new_code.push_str(&section);
-        new_code.push_str("\n\n");
-    }
-    new_code
-}
+use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
 
 pub async fn run(
     mut code: String,
