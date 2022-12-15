@@ -327,6 +327,32 @@ impl Interpreter {
     pub async fn select(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
         let option_text = self.resolve(cp)?;
 
+        // Sometimes, a Select elements only visible text on the page
+        // is it's default option. Many users may try to locate
+        // the select element based on that text and have to dive into the html
+        // before realizing they aren't locating the select element. To prevent
+        // this, when select is called, if the currently select element is an option,
+        // we first change it to the select containing it.
+        if self
+            .get_curr_elem()?
+            .tag_name()
+            .await
+            .map_err(|_| self.error("Error getting element tag name"))?
+            == "option"
+        {
+            let parent_select = self
+                .get_curr_elem()?
+                .query(By::XPath("../../select"))
+                .first()
+                .await
+                .map_err(|_| {
+                    self.error(
+                        "Error getting parent select. Try locating the select element directly",
+                    )
+                })?;
+            self.set_curr_elem(parent_select, false).await?;
+        }
+
         // Try to create a select element from the current located element
         let select_elm = SelectElement::new(self.get_curr_elem()?)
             .await
