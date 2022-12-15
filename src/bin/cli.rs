@@ -90,7 +90,7 @@ async fn main() {
     if let Some(ref mut output) = output_dir {
         if looks_like_file(output) {
             eprintln!(
-                    "Usage: output_dir flag must be a directory, but received {}",
+                "Usage: output_dir flag must be a directory, but received {}",
                 output.display()
             );
             return;
@@ -213,7 +213,7 @@ async fn run_dir(
 async fn repl_loop(
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
-    is_demo: bool
+    is_demo: bool,
 ) -> Result<(), &'static str> {
     let driver = new_driver(driver_config)
         .await
@@ -299,8 +299,7 @@ async fn repl_loop(
 // Helpers ---------------------
 
 fn get_filename_as_string(path: &PathBuf) -> String {
-    path
-        .file_stem()
+    path.file_stem()
         .expect("Could not get file name")
         .to_string_lossy()
         .to_string()
@@ -308,7 +307,7 @@ fn get_filename_as_string(path: &PathBuf) -> String {
 
 fn looks_like_file(path: &PathBuf) -> bool {
     path.file_name()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or("".to_owned())
-            .contains(".")
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or("".to_owned())
+        .contains(".")
 }

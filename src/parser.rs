@@ -103,6 +103,8 @@ pub enum Cmd {
 
     /// Pauses test execution for the provided number of seconds
     Chill(CmdParam),
+
+    Select(CmdParam),
 }
 
 impl std::fmt::Display for Cmd {
@@ -119,6 +121,7 @@ impl std::fmt::Display for Cmd {
             Cmd::Press(cp) => write!(f, "press {}", cp),
             Cmd::Chill(cp) => write!(f, "chill {}", cp),
             Cmd::LocateNoScroll(cp) => write!(f, "locate-no-scroll {}", cp),
+            Cmd::Select(cp) => write!(f, "select {}", cp),
         }
     }
 }
@@ -293,6 +296,8 @@ impl Parser {
             self.parse_cmd_param().map(|cp| Cmd::Press(cp))
         } else if self.advance_on(TokenType::Chill).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Chill(cp))
+        } else if self.advance_on(TokenType::Select).is_some() {
+            self.parse_cmd_param().map(|cp| Cmd::Select(cp))
         } else {
             let token = self.advance_on_any();
             match token.token_type {

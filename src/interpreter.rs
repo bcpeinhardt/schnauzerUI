@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use async_recursion::async_recursion;
 use futures::TryFutureExt;
-use thirtyfour::prelude::*;
+use thirtyfour::{components::SelectElement, prelude::*};
 
 use crate::{
     environment::Environment,
@@ -320,7 +320,25 @@ impl Interpreter {
             Cmd::Url(url) => self.url_cmd(url).await,
             Cmd::Press(cp) => self.press(cp).await,
             Cmd::Chill(cp) => self.chill(cp).await,
+            Cmd::Select(cp) => self.select(cp).await,
         }
+    }
+
+    pub async fn select(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+        let option_text = self.resolve(cp)?;
+
+        // Try to create a select element from the current located element
+        let select_elm = SelectElement::new(self.get_curr_elem()?)
+            .await
+            .map_err(|_| self.error("Element is not a <select> element"))?;
+
+        // Try to select the element by text
+        select_elm
+            .select_by_visible_text(&option_text)
+            .await
+            .map_err(|_| self.error(&format!("Could not select text {}", option_text)))?;
+
+        Ok(())
     }
 
     pub async fn chill(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
