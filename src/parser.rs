@@ -105,6 +105,8 @@ pub enum Cmd {
     Chill(CmdParam),
 
     Select(CmdParam),
+
+    DragTo(CmdParam),
 }
 
 impl std::fmt::Display for Cmd {
@@ -122,6 +124,7 @@ impl std::fmt::Display for Cmd {
             Cmd::Chill(cp) => write!(f, "chill {}", cp),
             Cmd::LocateNoScroll(cp) => write!(f, "locate-no-scroll {}", cp),
             Cmd::Select(cp) => write!(f, "select {}", cp),
+            Cmd::DragTo(cp) => write!(f, "drag-to {}", cp),
         }
     }
 }
@@ -298,6 +301,8 @@ impl Parser {
             self.parse_cmd_param().map(|cp| Cmd::Chill(cp))
         } else if self.advance_on(TokenType::Select).is_some() {
             self.parse_cmd_param().map(|cp| Cmd::Select(cp))
+        } else if self.advance_on(TokenType::DragTo).is_some() {
+            self.parse_cmd_param().map(|cp| Cmd::DragTo(cp))
         } else {
             let token = self.advance_on_any();
             match token.token_type {

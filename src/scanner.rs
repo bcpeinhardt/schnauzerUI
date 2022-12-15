@@ -15,6 +15,7 @@ pub enum TokenType {
     Press,
     Chill,
     Select,
+    DragTo,
 
     // Literals (the associated string is the string literal)
     String(String),
@@ -79,6 +80,7 @@ impl std::fmt::Display for TokenType {
             TokenType::Chill => "chill",
             TokenType::LocateNoScroll => "locate-no-scroll",
             TokenType::Select => "select",
+            TokenType::DragTo => "drag-to",
         };
 
         write!(f, "{}", lexeme)
@@ -192,6 +194,7 @@ impl Scanner {
             "chill" => Some(self.token(TokenType::Chill)),
             "locate-no-scroll" => Some(self.token(TokenType::LocateNoScroll)),
             "select" => Some(self.token(TokenType::Select)),
+            "drag-to" => Some(self.token(TokenType::DragTo)),
 
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")
