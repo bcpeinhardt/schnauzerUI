@@ -28,6 +28,7 @@ pub struct Interpreter {
     /// The statements for the interpreter to execute
     stmts: Vec<Stmt>,
 
+    /// Each interpreter gets an environment for storing variables
     environment: Environment,
 
     /// The locate command brings an element into focus. That element is stored here. Subsequents commands are performed
@@ -45,10 +46,11 @@ pub struct Interpreter {
     /// in the case that we encounter an error while in try-again mode.
     tried_again: bool,
 
+    /// The progress of the program is stored into a buffer to optionally be written to a file
     pub log_buffer: String,
-
     pub screenshot_buffer: Vec<Vec<u8>>,
 
+    /// Denotes whether the program is in "demo" mode
     is_demo: bool,
 }
 
@@ -192,7 +194,7 @@ impl Interpreter {
     /// Executes a single SchnauzerUI statement.
     pub async fn execute_stmt(&mut self, stmt: Stmt) -> RuntimeResult<(), String> {
         // Add the statement to the list of stmts since the last catch-error stmt was encountered.
-        // Used by the try-again commadn to re-execute on an error.
+        // Used by the try-again command to re-execute on an error.
         self.stmts_since_last_error_handling.push(stmt.clone());
 
         if !self.had_error {

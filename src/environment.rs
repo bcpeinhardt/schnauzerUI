@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 /// Represents the "state" of the programs execution. Basically
-/// keeps charge of variables and their values.
+/// keeps track of variables and their values.
 pub struct Environment(HashMap<String, String>);
 
 impl Environment {

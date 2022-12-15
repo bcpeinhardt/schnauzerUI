@@ -41,13 +41,13 @@ struct Cli {
 
     /// The port that the Selenium standalone grid is running on.
     /// Defaults to 4444.
-    #[arg(short, long)]
-    port: Option<usize>,
+    #[arg(short, long, default_value_t = 4444)]
+    port: usize,
 
     /// Which browser to use. Supports "firefox" or "chrome".
     /// Defaults to chrome.
-    #[arg(short, long)]
-    browser: Option<String>,
+    #[arg(short, long, default_value_t = String::from("chrome"))]
+    browser: String,
 
     /// Path to an excel file which holds variable values for test runs
     #[arg(short = 'x', long)]
@@ -73,11 +73,7 @@ async fn main() {
         demo,
     } = Cli::parse();
 
-    let dt = datatable.map(|path| read_csv(path));
-
-    let port = port.unwrap_or(4444);
-
-    let browser = browser.unwrap_or("chrome".to_owned());
+    // Resolve browser to a supported browser
     let browser = match browser.as_str() {
         "chrome" => SupportedBrowser::Chrome,
         "firefox" => SupportedBrowser::FireFox,
@@ -90,25 +86,11 @@ async fn main() {
         }
     };
 
-    // Set up the DriverConfig
-    let driver_config = WebDriverConfig {
-        port,
-        headless,
-        browser,
-    };
-
     // Verify that the passed --output-dir could be a directory (a '.' would indicate a file instead)
-    let looks_like_file = |path: &PathBuf| {
-        path.file_name()
-            .map(|f| f.to_string_lossy().to_string())
-            .unwrap_or("".to_owned())
-            .contains(".")
-    };
-
     if let Some(ref mut output) = output_dir {
         if looks_like_file(output) {
             eprintln!(
-                "Usage: output_dir flag must be a directory, but received {}",
+                    "Usage: output_dir flag must be a directory, but received {}",
                 output.display()
             );
             return;
@@ -117,6 +99,16 @@ async fn main() {
         std::fs::create_dir_all(output.clone())
             .expect(&format!("Could not create directory: {}", output.display()));
     }
+
+    // If a path to a datatable was provided, read in the datatable as a csv.
+    let dt = datatable.map(|path| read_csv(path));
+
+    // Combine webdriver related arguments into a config object
+    let driver_config = WebDriverConfig {
+        port,
+        headless,
+        browser,
+    };
 
     // Delegate based on provided cli arguments
     match (input_dir, input_filepath, repl) {
@@ -142,7 +134,7 @@ async fn main() {
                 return;
             }
 
-            // the output directory should default to the directory of the input file.
+            // the output directory should default to the directory of the input file
             let output = output_dir
                 .or(filepath.parent().map(|f| f.to_path_buf()))
                 .unwrap_or(".".into());
@@ -152,7 +144,7 @@ async fn main() {
         // They provided the repl flag, so run in repl mode.
         // The output directory should default to the current directory.
         (None, None, true) => {
-            if let Err(e) = repl_loop(output_dir.unwrap_or(".".into()), driver_config).await {
+            if let Err(e) = repl_loop(output_dir.unwrap_or(".".into()), driver_config, demo).await {
                 eprintln!("REPL encountered an error: {}", e);
             }
         }
@@ -176,11 +168,7 @@ async fn run_file(
         input_filepath.display()
     ));
 
-    let file_name = input_filepath
-        .file_stem()
-        .expect("Could not get file name")
-        .to_string_lossy()
-        .to_string();
+    let file_name = get_filename_as_string(&input_filepath);
 
     // Create a driver
     let driver = new_driver(driver_config)
@@ -225,11 +213,12 @@ async fn run_dir(
 async fn repl_loop(
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
+    is_demo: bool
 ) -> Result<(), &'static str> {
     let driver = new_driver(driver_config)
         .await
         .map_err(|_| "Error starting interpreter and/or browser")?;
-    let mut interpreter = Interpreter::new(driver, vec![], true);
+    let mut interpreter = Interpreter::new(driver, vec![], is_demo);
     let mut script_buffer = String::new();
 
     let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())
@@ -305,4 +294,21 @@ async fn repl_loop(
     }
 
     Ok(())
+}
+
+// Helpers ---------------------
+
+fn get_filename_as_string(path: &PathBuf) -> String {
+    path
+        .file_stem()
+        .expect("Could not get file name")
+        .to_string_lossy()
+        .to_string()
+}
+
+fn looks_like_file(path: &PathBuf) -> bool {
+    path.file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or("".to_owned())
+            .contains(".")
 }
