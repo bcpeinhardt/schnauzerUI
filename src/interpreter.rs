@@ -322,14 +322,25 @@ impl Interpreter {
             Cmd::Chill(cp) => self.chill(cp).await,
             Cmd::Select(cp) => self.select(cp).await,
             Cmd::DragTo(cp) => self.drag_to(cp).await,
+            Cmd::Upload(cp) => self.upload(cp).await,
         }
+    }
+
+    pub async fn upload(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+        // Uploading to a file input is the same as typing keys into it,
+        // but our users shouldn't have to know that.
+
+        let path = self.resolve(cp)?;
+        self.get_curr_elem()?
+            .send_keys(path)
+            .await
+            .map_err(|_| self.error("Error uploading file"))
     }
 
     pub async fn drag_to(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
         let current = self.get_curr_elem()?.clone();
         self.locate(cp, false).await?;
-        current.js_drag_to(self.get_curr_elem()?).await.map_err(|_| self.error("Error dragging element."))?;
-        Ok(())
+        current.js_drag_to(self.get_curr_elem()?).await.map_err(|_| self.error("Error dragging element."))
     }
 
     pub async fn select(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
@@ -350,7 +361,7 @@ impl Interpreter {
         {
             let parent_select = self
                 .get_curr_elem()?
-                .query(By::XPath("../../select"))
+                .query(By::XPath("./.."))
                 .first()
                 .await
                 .map_err(|_| {
@@ -370,9 +381,7 @@ impl Interpreter {
         select_elm
             .select_by_visible_text(&option_text)
             .await
-            .map_err(|_| self.error(&format!("Could not select text {}", option_text)))?;
-
-        Ok(())
+            .map_err(|_| self.error(&format!("Could not select text {}", option_text)))
     }
 
     pub async fn chill(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
