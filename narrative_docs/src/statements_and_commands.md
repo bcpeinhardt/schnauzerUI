@@ -134,3 +134,22 @@ For example, after logging into a website, rather than using the `chill` command
 Ex. Wait 10 seconds.
 
 `chill "10"`
+
+### drag-to
+The `drag-to` command uses javascript to simulate a drag and drop event, dragging the currently located
+element to the element matching the provided locator.
+
+Ex. Imagine mapping headers to the correct column of an uploaded file.
+
+`locate "email" and drag-to "//div[contains(text(), '@')]"`
+
+### select
+The `select` command will select (by text) one of the options in a select element.
+Note. This command will also work if the currently located element is an option in the given
+select element. This makes it much easier to locate and use select elements using only the displayed option
+text. 
+
+Ex. Login as an admin user.
+
+`locate "Select Role" and select "Admin User"
+
