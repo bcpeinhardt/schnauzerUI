@@ -5,6 +5,7 @@
 //! Rather than providing a shim to underling code written by
 //! a QA engineer (see [Cucumber](https://cucumber.io/)), SchnauzerUI is the only source of truth for a
 //! test's execution. In this way, SchnauzerUI aims to provide a test report you can trust.
+//! 
 //!
 //! SchnauzerUI is most comparable to and could serve as an open source replacement for [testRigor](https://testrigor.com/)
 //!
