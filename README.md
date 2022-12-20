@@ -13,25 +13,3 @@ SchnauzerUI is most comparable to and could serve as an open source replacement 
 If you would like to try it out, you can start with the [narrative docs](https://bcpeinhardt.github.io/schnauzerUI/)
 or watch this intro youtube video (not yet filmed, sorry).
 
-## Running the tests
-Before running the tests you will need firefox and geckodriver installed and in your path.
-Then
-
-1. Start selenium. SchnauzerUI is executed against a standalone selenium grid (support for configuring
-SchnauzerUI to run against an existing selenium infrastructure is on the todo list). To run the provided
-selenium grid, `cd` into the selenium directory in a new terminal and run
-```bash
-java -jar .\selenium-server-<version>.jar standalone --override-max-sessions true --max-sessions 1000 --port 4444
-```
-No, this will not launch 1000 browsers. There is another setting, max-instances which controls the number of browsers
-running at a time (defaults to 8 for firefox and chrome). Its just that now we can run as many tests as we like (up to 1000),
-provided we only do 8 at a time.
-
-2. The tests come with accompanying HTML files. The easiest way to serve the files to localhost
-is probably to use python. In another new terminal, run the command
-```python
-python -m http.server 1234
-```
-
-From there, it should be a simple `cargo test`. The tests will take a moment to execute,
-as they will launch browsers to run in.
