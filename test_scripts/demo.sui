@@ -1,0 +1,23 @@
+# A demo of how SchnauzerUI simplifies complex Selenium tasks
+url "https://automationintesting.com/selenium/testpage/"
+
+locate "First name" and type "Benjamin"
+
+locate "Enter your surname" and type "Peinhardt"
+
+locate "Gender" and select "Male"
+
+locate "//*[@id='red']" and click
+
+locate "Tell me more!" and type "there's not much to tell"
+
+locate "Which continents have you visited" and select "Asia"
+
+locate "Email" and click
+
+locate "SMS" and click
+
+screenshot
+
+locate "I do nothing!" and click
+

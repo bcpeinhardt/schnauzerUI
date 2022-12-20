@@ -326,6 +326,59 @@ impl Interpreter {
         }
     }
 
+    // Very often a user will locate an html label element and then
+    // specify a command intending to interact with it's associated 
+    // input element. We'll try to aid this convenient behavior by dynamically
+    // swapping out the label for its input as the current element.
+    // A label/input pair with the matching for/id attributes respectively,
+    // or a label/input pair where the label element contains the input element,
+    // will be swapped.
+    async fn resolve_label_to_input(&mut self) -> RuntimeResult<(), String> {
+
+        // Label with correct for attribute 
+        if self
+            .get_curr_elem()?
+            .tag_name()
+            .await
+            .map_err(|_| self.error("Error getting element tag name"))?
+            == "label"
+        {
+
+            // Label contains input
+        if let Some(input) = self.get_curr_elem()?.query(By::Tag("input")).or(By::Tag("textarea")).first().await.ok() {
+            self.set_curr_elem(input, false).await?;
+            return Ok(())
+        }
+
+            // Get the for attribute
+            let for_attr = self
+                .get_curr_elem()?
+                .attr("for")
+                .await
+                .map_err(|_| self.error("Unknown error"))?
+                .ok_or(self.error(
+                    "Label does not have a for attribute. Try locating the input directly",
+                ))?;
+
+            // Try to find the input element with the corresponding id attribute
+            self.set_curr_elem(
+                self.driver
+                    .query(By::Id(&for_attr))
+                    .first()
+                    .await
+                    .map_err(|_| {
+                        self.error(
+                            "Could not locate input element with corresponding for attribute",
+                        )
+                    })?,
+                false,
+            )
+            .await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn upload(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
         // Uploading to a file input is the same as typing keys into it,
         // but our users shouldn't have to know that.
@@ -340,7 +393,10 @@ impl Interpreter {
     pub async fn drag_to(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
         let current = self.get_curr_elem()?.clone();
         self.locate(cp, false).await?;
-        current.js_drag_to(self.get_curr_elem()?).await.map_err(|_| self.error("Error dragging element."))
+        current
+            .js_drag_to(self.get_curr_elem()?)
+            .await
+            .map_err(|_| self.error("Error dragging element."))
     }
 
     pub async fn select(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
@@ -452,6 +508,9 @@ impl Interpreter {
 
     /// Tries to click on the currently located web element.
     pub async fn click(&mut self) -> RuntimeResult<(), String> {
+
+        self.resolve_label_to_input().await?;
+
         self.driver
             .action_chain()
             .move_to_element_center(self.get_curr_elem()?)
@@ -464,10 +523,16 @@ impl Interpreter {
     /// Tries to type into the current element
     pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> RuntimeResult<(), String> {
         let txt = self.resolve(cmd_param)?;
+
+        self.resolve_label_to_input().await?;
+
+        // Clear the element
         self.get_curr_elem()?
             .clear()
             .await
             .map_err(|_| self.error("Error clearing element"))?;
+
+        // Type into the element
         self.get_curr_elem()?
             .send_keys(txt)
             .await
@@ -492,23 +557,12 @@ impl Interpreter {
     ) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
         for wait in [0, 5, 10] {
-            // Locate an element by its placeholder
+
+            // Locate an input element by its placeholder
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//input[@placeholder='{}']", locator)))
                 .wait(Duration::from_secs(wait), Duration::from_secs(1))
-                .first()
-                .await
-            {
-                return self.set_curr_elem(found_elem, scroll_into_view).await;
-            }
-
-            // Locate an input element by a preceding label
-            let label_locator = format!("//label[text()='{}']/../input", locator);
-            if let Ok(found_elem) = self
-                .driver
-                .query(By::XPath(&label_locator))
-                .nowait()
                 .first()
                 .await
             {

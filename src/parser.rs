@@ -108,7 +108,7 @@ pub enum Cmd {
 
     DragTo(CmdParam),
 
-    Upload(CmdParam)
+    Upload(CmdParam),
 }
 
 impl std::fmt::Display for Cmd {

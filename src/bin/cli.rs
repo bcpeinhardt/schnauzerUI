@@ -1,4 +1,10 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    process::{Command, Stdio},
+};
+
+use webdriver_install::Driver;
 
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
@@ -6,8 +12,8 @@ use promptly::{prompt, prompt_default};
 use walkdir::WalkDir;
 
 use schnauzer_ui::{
-    datatable::read_csv, interpreter::Interpreter, new_driver, parser::Stmt, run, scanner::Scanner,
-    SupportedBrowser, WebDriverConfig,
+    datatable::read_csv, install_drivers, interpreter::Interpreter, new_driver, parser::Stmt, run,
+    scanner::Scanner, with_drivers_running, SupportedBrowser, WebDriverConfig,
 };
 
 /// SchnauzerUI is a DSL for automated web UI testing.
@@ -39,11 +45,6 @@ struct Cli {
     #[arg(short = 'z', long)]
     headless: bool,
 
-    /// The port that the Selenium standalone grid is running on.
-    /// Defaults to 4444.
-    #[arg(short, long, default_value_t = 4444)]
-    port: usize,
-
     /// Which browser to use. Supports "firefox" or "chrome".
     /// Defaults to chrome.
     #[arg(short, long, default_value_t = String::from("chrome"))]
@@ -58,8 +59,20 @@ struct Cli {
     demo: bool,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    install_drivers();
+    with_drivers_running(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                start().await;
+            });
+    });
+}
+
+async fn start() {
     // Destructure the cli arguments passed
     let Cli {
         input_dir,
@@ -67,7 +80,6 @@ async fn main() {
         repl,
         mut output_dir,
         headless,
-        port,
         browser,
         datatable,
         demo,
@@ -84,6 +96,11 @@ async fn main() {
             );
             return;
         }
+    };
+
+    let port = match browser {
+        SupportedBrowser::FireFox => 4444,
+        SupportedBrowser::Chrome => 9515,
     };
 
     // Verify that the passed --output-dir could be a directory (a '.' would indicate a file instead)

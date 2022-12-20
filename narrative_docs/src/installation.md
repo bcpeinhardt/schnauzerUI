@@ -3,23 +3,17 @@
 **** *Heads up, these instructions are a bit technical. If you don't feel confident installing
 this on your own, check out the youtube installation tutorial: todo create youtube install tutorial* ****
 
-Schnauzer UI scripts are run against a selenium grid in standalone mode. You will need to download 
-it from [the Selenium website](https://www.selenium.dev/downloads/). 
+Note: SchnauzerUI executes against running chromedriver and geckodriver processes, but handles downloading,
+running and stopping them itself. You should be able to do everything with just SchnauzerUI and the browser
+you want to test in. Just make sure to have ports 4444 and 9515 open. If you don't know what that means,
+then you're probably good to go.
 
-To run the grid, you'll need java installed on your system. Run the grid with
-`java -jar <selenium-grid-file-name>.jar standalone`
-
-Now in another terminal, we can cargo install Schnauzer UI. For this you'll
-need cargo and rust on your system. In another temrinal, run
-`cargo install --git https://github.com/bcpeinhardt/schnauzerUI`. 
-
-Once it's done compiling, you should be all set up to start automating the 
-Schnauzer UI way. To start up the repl, run
-`schnauzerUI -i -p 4444 -b chrome`
-
-The -i flage stands for "interactive", aka the repl.
-The -p flag specifies the port your selenium grid is running on. It should have defaulted to 4444, so that's what we'll tell SchnauzerUI.
-The -b flage specifies the browser you want to use. Supports "chrome" and "firefox".
+To install SchnauzerUI, check [github](https://github.com/bcpeinhardt/schnauzerUI) for a 
+download link or your operating system. Be sure to save it somewhere in your PATH.
+Alternatively, if you have the rust toolchain installed, you can build it from source by running
+`cargo install https://github.com/bcpeinhardt/schnauzerUI`
+Also, go ahead and add `$HOME/.webdrivers` to your path as well. This is where chromedriver
+and geckodriver will be downloaded to.
 
 Hopefully, a browser opened up on your computer. In the terminal, you will be prompted for a name for your script.
 Once you've done that, you'll be prompted for a command. Try `url "https://youtube.com"`.

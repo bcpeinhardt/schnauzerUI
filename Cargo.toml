@@ -3,7 +3,6 @@ name = "schnauzerUI"
 version = "0.1.0"
 edition = "2021"
 
-
 [lib]
 name = "schnauzer_ui"
 path = "src/lib.rs"
@@ -24,6 +23,4 @@ tokio = "1.21.2"
 tracing-subscriber = "0.3.16"
 walkdir = "2.3.2"
 csv = "1.1.6"
-
-[dev-dependencies]
-lazy_static = "1.4.0"
+webdriver-install = "0.3.2"

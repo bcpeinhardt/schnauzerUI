@@ -82,7 +82,7 @@ impl std::fmt::Display for TokenType {
             TokenType::LocateNoScroll => "locate-no-scroll",
             TokenType::Select => "select",
             TokenType::DragTo => "drag-to",
-            TokenType::Upload => "upload"
+            TokenType::Upload => "upload",
         };
 
         write!(f, "{}", lexeme)

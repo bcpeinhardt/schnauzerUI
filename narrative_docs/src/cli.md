@@ -21,8 +21,6 @@ Options:
           When --dir or --filepath passed, path to a directory for logs and screenshots. When --repl passed, path to a directory for the script to record the repl interactions
   -z, --headless
           Whether or not to display the browsers while the tests are running
-  -p, --port <PORT>
-          The port that the Selenium standalone grid is running on. Defaults to 4444
   -b, --browser <BROWSER>
           Which browser to use. Supports "firefox" or "chrome". Defaults to chrome
   -x, --datatable <DATATABLE>
@@ -37,13 +35,12 @@ Options:
 
 ## REPL/Iteractive Mode
 
-The SchnauzerUI cli supports something called "REPL driven development". With a webdriver process running
-on port 4444, running `sui -i` or `sui --repl` will launch a browser and prompt you for the name of
+The SchnauzerUI cli supports something called "REPL driven development". Running `sui -i` or `sui --repl` will launch a browser and prompt you for the name of
 a test. Give your test a name then it will ask for a command.
 
-With most UI testing tools, making a chnage requires rerunning at least the entire test. If you have a more complex setup,
+With most UI testing tools, making a change requires rerunning at least the entire test. If you have a more complex setup,
 you may find yourself rerunning 15 minutes worth of tests to validate one change. SchnauzerUI tries to be much 
-more productive then that.
+more productive than that.
 
 Type the command `url "https://youtube.com"`. The browser will navigate to youtube. You will then be asked whether 
 you want to save the command. If the command produced no error, the default is yes and you can simply press Enter to
@@ -58,10 +55,6 @@ like with `sui -f <path-to-test>.sui`.
 Running or writing a script in demo mode makes a very simple change. Whenever an element is located using one 
 of the locate commands (`locate`, `locate-no-scroll` etc.), that element is given a colored border. 
 This makes understanding what a script is doing just by watching it execute a lot easier. 
-
-SchnauzerUI also acknowledges that there exists an important relationship between tests an documentation.
-We are in the process of adding functionality so that SchnauzerUI can be used to easily produce product documentation
-as well.
 
 ## Datatables
 

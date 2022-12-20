@@ -5,7 +5,7 @@
 //! Rather than providing a shim to underling code written by
 //! a QA engineer (see [Cucumber](https://cucumber.io/)), SchnauzerUI is the only source of truth for a
 //! test's execution. In this way, SchnauzerUI aims to provide a test report you can trust.
-//! 
+//!
 //! SchnauzerUI is most comparable to and could serve as an open source replacement for [testRigor](https://testrigor.com/)
 //!
 //! If you would like to try it out, you can start with the [narrative docs](https://bcpeinhardt.github.io/schnauzerUI/)
@@ -40,7 +40,11 @@ pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 
-use std::path::PathBuf;
+use std::{
+    panic,
+    path::PathBuf,
+    process::{Child, Command, Stdio},
+};
 
 use datatable::preprocess;
 use interpreter::Interpreter;
@@ -48,6 +52,46 @@ use parser::Parser;
 use scanner::Scanner;
 use std::collections::HashMap;
 use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
+use webdriver_install::Driver;
+
+pub fn with_drivers_running<T>(f: T)
+where
+    T: FnOnce() -> () + panic::UnwindSafe,
+{
+    let (geckodriver, chromedriver) = start_drivers();
+
+    f();
+
+    kill_drivers(geckodriver, chromedriver);
+}
+
+pub fn install_drivers() {
+    Driver::Chrome
+        .install()
+        .expect("Could not install chromedriver");
+    Driver::Gecko
+        .install()
+        .expect("Could not install geckodriver");
+}
+
+fn start_drivers() -> (Child, Child) {
+    let geckodriver = Command::new("geckodriver")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("Could not start geckodriver");
+    let chromedriver = Command::new("chromedriver")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("Could not start chromedriver");
+    (geckodriver, chromedriver)
+}
+
+fn kill_drivers(mut geckodriver: Child, mut chromedriver: Child) {
+    geckodriver.kill().expect("Could not stop geckodriver");
+    chromedriver.kill().expect("Could not stop chromedriver");
+}
 
 pub async fn run(
     mut code: String,
@@ -135,7 +179,9 @@ pub async fn new_driver(
     match browser {
         SupportedBrowser::FireFox => {
             let mut caps = DesiredCapabilities::firefox();
-            caps.set_headless()?;
+            if headless {
+                caps.set_headless()?;
+            }
             WebDriver::new(&localhost, caps).await
         }
         SupportedBrowser::Chrome => {
