@@ -327,15 +327,14 @@ impl Interpreter {
     }
 
     // Very often a user will locate an html label element and then
-    // specify a command intending to interact with it's associated 
+    // specify a command intending to interact with it's associated
     // input element. We'll try to aid this convenient behavior by dynamically
     // swapping out the label for its input as the current element.
     // A label/input pair with the matching for/id attributes respectively,
     // or a label/input pair where the label element contains the input element,
     // will be swapped.
     async fn resolve_label_to_input(&mut self) -> RuntimeResult<(), String> {
-
-        // Label with correct for attribute 
+        // Label with correct for attribute
         if self
             .get_curr_elem()?
             .tag_name()
@@ -343,12 +342,19 @@ impl Interpreter {
             .map_err(|_| self.error("Error getting element tag name"))?
             == "label"
         {
-
-            // Label contains input
-        if let Some(input) = self.get_curr_elem()?.query(By::Tag("input")).or(By::Tag("textarea")).first().await.ok() {
-            self.set_curr_elem(input, false).await?;
-            return Ok(())
-        }
+            // Label contains input or textarea
+            if let Some(input) = self
+                .get_curr_elem()?
+                .query(By::Tag("input"))
+                .or(By::Tag("textarea"))
+                .nowait()
+                .first()
+                .await
+                .ok()
+            {
+                self.set_curr_elem(input, false).await?;
+                return Ok(());
+            }
 
             // Get the for attribute
             let for_attr = self
@@ -360,10 +366,12 @@ impl Interpreter {
                     "Label does not have a for attribute. Try locating the input directly",
                 ))?;
 
-            // Try to find the input element with the corresponding id attribute
+            // Try to find the input element with the corresponding id or name attribute
             self.set_curr_elem(
                 self.driver
                     .query(By::Id(&for_attr))
+                    .or(By::Name(&for_attr))
+                    .nowait()
                     .first()
                     .await
                     .map_err(|_| {
@@ -508,7 +516,6 @@ impl Interpreter {
 
     /// Tries to click on the currently located web element.
     pub async fn click(&mut self) -> RuntimeResult<(), String> {
-
         self.resolve_label_to_input().await?;
 
         self.driver
@@ -557,7 +564,6 @@ impl Interpreter {
     ) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
         for wait in [0, 5, 10] {
-
             // Locate an input element by its placeholder
             if let Ok(found_elem) = self
                 .driver
