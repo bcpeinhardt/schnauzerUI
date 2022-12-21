@@ -1,15 +1,16 @@
-# schnauzerUI
+# Say goodbye to maintaining huge automated test suites. <br>
 
-SchnauzerUI is a human readable DSL for performing automated UI testing in the browser.
-The main goal of SchnauzerUI is to increase stakeholder visibility and participation in
-automated Quality Assurance testing.
+### *SchnauzerUI rescues you from the burden of maintaining huge automated*
+### *test suites by being so productive to write, starting from scratch isn't*
+### *a bad thing.* <br><br>
 
-Rather than providing a shim to underling code written by
-a QA engineer (see [Cucumber](https://cucumber.io/)), SchnauzerUI is the only source of truth for a
-test's execution. In this way, SchnauzerUI aims to provide a test report you can trust.
+### *Every SchnauzerUI script is completely standalone. Paste one in a jira ticket, slack/teams message, or even* 
+### *a text! Automated testing doesn't have to be limited to rigid regression suites only engineers understand.* <br><br>
 
-SchnauzerUI is most comparable to and could serve as an open source replacement for [testRigor](https://testrigor.com/)
-
-If you would like to try it out, you can start with the [narrative docs](https://bcpeinhardt.github.io/schnauzerUI/)
-or watch this intro youtube video (not yet filmed, sorry).
+### *What makes SchnauzerUI so productive?*
+- ### *REPL driven development brings exploratory and automated testing together*
+- ### *Easily inline existing scripts to achieve reusability while creating a script that runs by itself*
+- ### *Smart locators empower you to think in terms of the UI instead of the HTML*
+- ### *Scripts are completely framework agnostic, so they'll survive a framework migration*
+- ### *Launch a browser and start automating with a single command*
 

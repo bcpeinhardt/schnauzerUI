@@ -564,6 +564,7 @@ impl Interpreter {
     ) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
         for wait in [0, 5, 10, 20, 30, 60] {
+            
             // Locate an input element by its placeholder
             if let Ok(found_elem) = self
                 .driver
