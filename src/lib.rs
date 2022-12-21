@@ -153,6 +153,12 @@ pub async fn new_driver(
             if headless {
                 caps.set_headless()?;
             }
+            caps.add_arg("--disable-infobars")?;
+            caps.add_arg("start-maximized")?;
+            caps.add_arg("--disable-extensions")?;
+            let mut prefs = HashMap::new();
+            prefs.insert("profile.default_content_setting_values.notifications", 1);
+            caps.add_experimental_option("prefs", prefs)?;
             WebDriver::new(&localhost, caps).await
         }
     }

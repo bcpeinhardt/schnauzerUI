@@ -17,6 +17,9 @@ pub enum TokenType {
     Select,
     DragTo,
     Upload,
+    AcceptAlert,
+    DismissAlert,
+
 
     // Literals (the associated string is the string literal)
     String(String),
@@ -83,6 +86,8 @@ impl std::fmt::Display for TokenType {
             TokenType::Select => "select",
             TokenType::DragTo => "drag-to",
             TokenType::Upload => "upload",
+            TokenType::AcceptAlert => "accept-alert",
+            TokenType::DismissAlert => "dismiss-alert",
         };
 
         write!(f, "{}", lexeme)
@@ -198,7 +203,8 @@ impl Scanner {
             "select" => Some(self.token(TokenType::Select)),
             "drag-to" => Some(self.token(TokenType::DragTo)),
             "upload" => Some(self.token(TokenType::Upload)),
-
+            "accept-alert" => Some(self.token(TokenType::AcceptAlert)),
+            "dismiss-alert" => Some(self.token(TokenType::DismissAlert)),
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")
                 && word.ends_with("\"")

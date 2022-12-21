@@ -109,6 +109,9 @@ pub enum Cmd {
     DragTo(CmdParam),
 
     Upload(CmdParam),
+
+    AcceptAlert,
+    DismissAlert
 }
 
 impl std::fmt::Display for Cmd {
@@ -128,6 +131,8 @@ impl std::fmt::Display for Cmd {
             Cmd::Select(cp) => write!(f, "select {}", cp),
             Cmd::DragTo(cp) => write!(f, "drag-to {}", cp),
             Cmd::Upload(cp) => write!(f, "upload {}", cp),
+            Cmd::AcceptAlert => write!(f, "accept-alert"),
+            Cmd::DismissAlert => write!(f, "dismiss-alert"),
         }
     }
 }
@@ -315,6 +320,8 @@ impl Parser {
                 TokenType::Refresh => Ok(Cmd::Refresh),
                 TokenType::TryAgain => Ok(Cmd::TryAgain),
                 TokenType::Screenshot => Ok(Cmd::Screenshot),
+                TokenType::AcceptAlert => Ok(Cmd::AcceptAlert),
+                TokenType::DismissAlert => Ok(Cmd::DismissAlert),
                 _ => Err(token.error("Expected command")),
             }
         }

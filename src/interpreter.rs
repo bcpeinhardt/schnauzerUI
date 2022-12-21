@@ -323,6 +323,8 @@ impl Interpreter {
             Cmd::Select(cp) => self.select(cp).await,
             Cmd::DragTo(cp) => self.drag_to(cp).await,
             Cmd::Upload(cp) => self.upload(cp).await,
+            Cmd::AcceptAlert => self.driver.accept_alert().map_err(|_| self.error("Error accepting alert")).await,
+            Cmd::DismissAlert => self.driver.dismiss_alert().map_err(|_| self.error("Error dismissing alert")).await,
         }
     }
 
@@ -602,6 +604,17 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//*[@title='{}']", locator)))
+                .nowait()
+                .first()
+                .await
+            {
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
+            }
+
+            // Try to locate by aria-label
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::XPath(&format!("//*[@aria-label='{}']", locator)))
                 .nowait()
                 .first()
                 .await
