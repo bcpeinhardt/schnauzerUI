@@ -24,6 +24,7 @@ use schnauzer_ui::{
         .required(true)
         .args(["input_dir", "input_filepath", "repl"])))]
 struct Cli {
+
     /// Path to a directory of scripts to run
     #[arg(short = 'd', long)]
     input_dir: Option<PathBuf>,
@@ -239,16 +240,51 @@ async fn run_dir(
 async fn repl_loop(
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
-    is_demo: bool,
+    is_demo: bool
 ) -> Result<(), &'static str> {
+
     let driver = new_driver(driver_config)
         .await
         .map_err(|_| "Error starting interpreter and/or browser")?;
     let mut interpreter = Interpreter::new(driver, vec![], is_demo);
+
     let mut script_buffer = String::new();
 
     let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())
         .map_err(|_| "Error reading script name")?;
+
+    let use_start_script: bool = prompt("Do you want to start from an existing script".to_owned()).map_err(|_| "Error prompting start script")?;
+    let start_script: Option<PathBuf> = use_start_script.then(|| {
+        prompt("Please provide the path to the script".to_owned()).expect("Error reading in file")
+    });
+
+    if let Some(start_path) = start_script {
+
+        let code = std::fs::read_to_string(start_path).map_err(|_| "Error reading in start file code")?;
+
+        // Scan and parse the code
+        let mut scanner = Scanner::from_src(code);
+        let tokens = scanner.scan();
+        let stmts = schnauzer_ui::parser::Parser::new().parse(tokens);
+
+        for stmt in stmts.into_iter() {
+            script_buffer.push_str(&format!("{}", stmt));
+                        script_buffer.push('\n');
+                        match stmt {
+                            Stmt::Comment(_) => {
+                                script_buffer.push('\n');
+                            }
+                            _ => {}
+                        }
+            match interpreter.execute_stmt(stmt).await {
+                Ok(_) => {},
+                Err(_) => {
+                    println!("Warning: Error encountered while running start script.");
+                },
+            }
+        }
+    } 
+
     loop {
         // Prompt for a schnauzer_ui statement
         let code: String = prompt("Enter a command").map_err(|_| "Error reading in line")?;
@@ -278,10 +314,10 @@ async fn repl_loop(
                         script_buffer.push_str(&format!("{}", stmt));
                         script_buffer.push('\n');
                         match stmt {
-                            Stmt::Comment(_) => {}
-                            _ => {
+                            Stmt::Comment(_) => {
                                 script_buffer.push('\n');
                             }
+                            _ => {}
                         }
                     }
                 }
