@@ -62,6 +62,13 @@ struct Cli {
 fn main() {
     install_drivers();
     with_drivers_running(|| {
+
+        // This sleep is here because the geckodriver and chromedriver actually
+        // take a moment to fully register after starting up.
+        // The release build is so fast the webdriver cant start because the drivers
+        // aren't initialized. This gives them 5 seconds to start up.
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()

@@ -52,7 +52,7 @@ pub fn install_drivers() {
         .expect("Could not install geckodriver");
 }
 
-fn start_drivers() -> (Child, Child) {
+pub fn start_drivers() -> (Child, Child) {
     let geckodriver = Command::new("geckodriver")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -66,7 +66,7 @@ fn start_drivers() -> (Child, Child) {
     (geckodriver, chromedriver)
 }
 
-fn kill_drivers(mut geckodriver: Child, mut chromedriver: Child) {
+pub fn kill_drivers(mut geckodriver: Child, mut chromedriver: Child) {
     geckodriver.kill().expect("Could not stop geckodriver");
     chromedriver.kill().expect("Could not stop chromedriver");
 }
