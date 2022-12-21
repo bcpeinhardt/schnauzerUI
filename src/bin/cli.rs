@@ -60,6 +60,10 @@ struct Cli {
 }
 
 fn main() {
+
+    // Parse cli options
+    let cli = Cli::parse();
+
     install_drivers();
     with_drivers_running(|| {
 
@@ -68,29 +72,27 @@ fn main() {
         // The release build is so fast the webdriver cant start because the drivers
         // aren't initialized. This gives them 5 seconds to start up.
         std::thread::sleep(std::time::Duration::from_secs(5));
-        
+
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap()
             .block_on(async {
-                start().await;
+                start(cli).await;
             });
     });
 }
 
-async fn start() {
-    // Destructure the cli arguments passed
-    let Cli {
-        input_dir,
-        input_filepath,
-        repl,
-        mut output_dir,
-        headless,
-        browser,
-        datatable,
-        demo,
-    } = Cli::parse();
+async fn start(Cli {
+    input_dir,
+    input_filepath,
+    repl,
+    mut output_dir,
+    headless,
+    browser,
+    datatable,
+    demo,
+}: Cli) {
 
     // Resolve browser to a supported browser
     let browser = match browser.as_str() {
