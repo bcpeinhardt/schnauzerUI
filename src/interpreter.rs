@@ -421,8 +421,7 @@ impl Interpreter {
         if self
             .get_curr_elem()?
             .tag_name()
-            .await
-            .map_err(|_| self.error("Error getting element tag name"))?
+            .await.unwrap_or("ignore error".to_owned())
             == "option"
         {
             let parent_select = self
