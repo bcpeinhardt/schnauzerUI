@@ -1,10 +1,4 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    process::{Command, Stdio},
-};
-
-use webdriver_install::Driver;
+use std::{collections::HashMap, path::PathBuf};
 
 use clap::{ArgGroup, Parser};
 use futures::future::join_all;
@@ -24,7 +18,6 @@ use schnauzer_ui::{
         .required(true)
         .args(["input_dir", "input_filepath", "repl"])))]
 struct Cli {
-
     /// Path to a directory of scripts to run
     #[arg(short = 'd', long)]
     input_dir: Option<PathBuf>,
@@ -61,13 +54,11 @@ struct Cli {
 }
 
 fn main() {
-
     // Parse cli options
     let cli = Cli::parse();
 
     install_drivers();
     with_drivers_running(|| {
-
         // This sleep is here because the geckodriver and chromedriver actually
         // take a moment to fully register after starting up.
         // The release build is so fast the webdriver cant start because the drivers
@@ -84,17 +75,18 @@ fn main() {
     });
 }
 
-async fn start(Cli {
-    input_dir,
-    input_filepath,
-    repl,
-    mut output_dir,
-    headless,
-    browser,
-    datatable,
-    demo,
-}: Cli) {
-
+async fn start(
+    Cli {
+        input_dir,
+        input_filepath,
+        repl,
+        mut output_dir,
+        headless,
+        browser,
+        datatable,
+        demo,
+    }: Cli,
+) {
     // Resolve browser to a supported browser
     let browser = match browser.as_str() {
         "chrome" => SupportedBrowser::Chrome,
@@ -240,9 +232,8 @@ async fn run_dir(
 async fn repl_loop(
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
-    is_demo: bool
+    is_demo: bool,
 ) -> Result<(), &'static str> {
-
     let driver = new_driver(driver_config)
         .await
         .map_err(|_| "Error starting interpreter and/or browser")?;
@@ -253,14 +244,15 @@ async fn repl_loop(
     let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())
         .map_err(|_| "Error reading script name")?;
 
-    let use_start_script: bool = prompt("Do you want to start from an existing script".to_owned()).map_err(|_| "Error prompting start script")?;
+    let use_start_script: bool = prompt("Do you want to start from an existing script".to_owned())
+        .map_err(|_| "Error prompting start script")?;
     let start_script: Option<PathBuf> = use_start_script.then(|| {
         prompt("Please provide the path to the script".to_owned()).expect("Error reading in file")
     });
 
     if let Some(start_path) = start_script {
-
-        let code = std::fs::read_to_string(start_path).map_err(|_| "Error reading in start file code")?;
+        let code =
+            std::fs::read_to_string(start_path).map_err(|_| "Error reading in start file code")?;
 
         // Scan and parse the code
         let mut scanner = Scanner::from_src(code);
@@ -269,21 +261,21 @@ async fn repl_loop(
 
         for stmt in stmts.into_iter() {
             script_buffer.push_str(&format!("{}", stmt));
-                        script_buffer.push('\n');
-                        match stmt {
-                            Stmt::Comment(_) => {
-                                script_buffer.push('\n');
-                            }
-                            _ => {}
-                        }
+            script_buffer.push('\n');
+            match stmt {
+                Stmt::Comment(_) => {
+                    script_buffer.push('\n');
+                }
+                _ => {}
+            }
             match interpreter.execute_stmt(stmt).await {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     println!("Warning: Error encountered while running start script.");
-                },
+                }
             }
         }
-    } 
+    }
 
     loop {
         // Prompt for a schnauzer_ui statement

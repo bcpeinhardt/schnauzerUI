@@ -1,0 +1,19 @@
+# Navigate to Facebook
+url "https://facebook.com"
+
+# Login with test credentials
+locate "Email or phone number" and type "2056410594"
+locate "Password" and type "BenDoesTests" and press "Enter"
+
+# Search for Fetch Rewards and follow the link
+locate "Search Facebook" and type "Fetch Rewards" and press "Enter"
+locate "Fetch" and click
+
+# Dismiss chat
+locate "Close chat" and click
+
+# Click like
+locate "Like" and click
+
+# Verify the text changed to Liked, then teardown by clicking again to unlike (sorry Fetch)
+locate "Liked" and click and locate "Like"

@@ -20,7 +20,6 @@ pub enum TokenType {
     AcceptAlert,
     DismissAlert,
 
-
     // Literals (the associated string is the string literal)
     String(String),
 

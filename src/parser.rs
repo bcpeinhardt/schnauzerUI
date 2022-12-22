@@ -111,7 +111,7 @@ pub enum Cmd {
     Upload(CmdParam),
 
     AcceptAlert,
-    DismissAlert
+    DismissAlert,
 }
 
 impl std::fmt::Display for Cmd {

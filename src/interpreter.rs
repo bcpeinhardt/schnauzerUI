@@ -35,6 +35,10 @@ pub struct Interpreter {
     /// against this element.
     curr_elem: Option<WebElement>,
 
+    /// The last locator used to locate an element. Stored
+    /// to re-execute locate command when necessary (like for a stale element)
+    locator: Option<String>,
+
     /// The had error field tracks whether or not the script encountered an error, and is used to move between catch-error: statements.
     had_error: bool,
 
@@ -70,6 +74,7 @@ impl Interpreter {
             log_buffer: String::new(),
             screenshot_buffer: vec![],
             is_demo,
+            locator: None,
         }
     }
 
@@ -139,11 +144,10 @@ impl Interpreter {
         elem: WebElement,
         scroll_into_view: bool,
     ) -> RuntimeResult<(), String> {
-        // Scroll the element into view if specified
+        // Scroll the element into view if specified, but don't fail on an error
+        // as this can error falsely for thing like chat windows
         if scroll_into_view {
-            elem.scroll_into_view()
-                .await
-                .map_err(|_| self.error("Error scrolling web element into view"))?;
+            let _ = elem.scroll_into_view().await;
         }
 
         // Give the located element a purple border if in demo mode
@@ -185,7 +189,21 @@ impl Interpreter {
 
     /// Returns a reference to the current element for performing operations on, or an
     /// error if there is no current element.
-    fn get_curr_elem(&self) -> RuntimeResult<&WebElement, String> {
+    async fn get_curr_elem(&mut self) -> RuntimeResult<&WebElement, String> {
+        if let Some(elem) = self.curr_elem.as_ref() {
+            if !elem
+                .is_present()
+                .await
+                .map_err(|_| self.error("Error checking if element is present"))?
+            {
+                // Element is stale, so replay the last locate command. Helps with pages which are highly dynamic
+                // for a few moments during the loading.
+                if let Some(locator) = self.locator.clone() {
+                    self.locate(CmdParam::String(locator), false).await?;
+                }
+            }
+        }
+
         self.curr_elem
             .as_ref()
             .ok_or(self.error("No element currently located. Try using the locate command"))
@@ -323,8 +341,18 @@ impl Interpreter {
             Cmd::Select(cp) => self.select(cp).await,
             Cmd::DragTo(cp) => self.drag_to(cp).await,
             Cmd::Upload(cp) => self.upload(cp).await,
-            Cmd::AcceptAlert => self.driver.accept_alert().map_err(|_| self.error("Error accepting alert")).await,
-            Cmd::DismissAlert => self.driver.dismiss_alert().map_err(|_| self.error("Error dismissing alert")).await,
+            Cmd::AcceptAlert => {
+                self.driver
+                    .accept_alert()
+                    .map_err(|_| self.error("Error accepting alert"))
+                    .await
+            }
+            Cmd::DismissAlert => {
+                self.driver
+                    .dismiss_alert()
+                    .map_err(|_| self.error("Error dismissing alert"))
+                    .await
+            }
         }
     }
 
@@ -338,15 +366,17 @@ impl Interpreter {
     async fn resolve_label_to_input(&mut self) -> RuntimeResult<(), String> {
         // Label with correct for attribute
         if self
-            .get_curr_elem()?
+            .get_curr_elem()
+            .await?
             .tag_name()
             .await
-            .map_err(|_| self.error("Error getting element tag name"))?
+            .unwrap_or("ignore_error".to_owned())
             == "label"
         {
             // Label contains input or textarea
             if let Some(input) = self
-                .get_curr_elem()?
+                .get_curr_elem()
+                .await?
                 .query(By::Tag("input"))
                 .or(By::Tag("textarea"))
                 .nowait()
@@ -360,7 +390,8 @@ impl Interpreter {
 
             // Get the for attribute
             let for_attr = self
-                .get_curr_elem()?
+                .get_curr_elem()
+                .await?
                 .attr("for")
                 .await
                 .map_err(|_| self.error("Unknown error"))?
@@ -394,17 +425,18 @@ impl Interpreter {
         // but our users shouldn't have to know that.
 
         let path = self.resolve(cp)?;
-        self.get_curr_elem()?
+        self.get_curr_elem()
+            .await?
             .send_keys(path)
             .await
             .map_err(|_| self.error("Error uploading file"))
     }
 
     pub async fn drag_to(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
-        let current = self.get_curr_elem()?.clone();
+        let current = self.get_curr_elem().await?.clone();
         self.locate(cp, false).await?;
         current
-            .js_drag_to(self.get_curr_elem()?)
+            .js_drag_to(self.get_curr_elem().await?)
             .await
             .map_err(|_| self.error("Error dragging element."))
     }
@@ -419,13 +451,16 @@ impl Interpreter {
         // this, when select is called, if the currently selected element is an option,
         // we first change it to the parent select containing it.
         if self
-            .get_curr_elem()?
+            .get_curr_elem()
+            .await?
             .tag_name()
-            .await.unwrap_or("ignore error".to_owned())
+            .await
+            .unwrap_or("ignore error".to_owned())
             == "option"
         {
             let parent_select = self
-                .get_curr_elem()?
+                .get_curr_elem()
+                .await?
                 .query(By::XPath("./.."))
                 .first()
                 .await
@@ -438,7 +473,7 @@ impl Interpreter {
         }
 
         // Try to create a select element from the current located element
-        let select_elm = SelectElement::new(self.get_curr_elem()?)
+        let select_elm = SelectElement::new(self.get_curr_elem().await?)
             .await
             .map_err(|_| self.error("Element is not a <select> element"))?;
 
@@ -465,7 +500,8 @@ impl Interpreter {
             "Enter" => Key::Enter,
             _ => return Err(self.error("Unsupported Key")),
         };
-        self.get_curr_elem()?
+        self.get_curr_elem()
+            .await?
             .send_keys("" + key_to_press)
             .await
             .map_err(|_| {
@@ -476,7 +512,8 @@ impl Interpreter {
     /// Reads the text of the currently located element to a variable.
     pub async fn read_to(&mut self, name: String) -> RuntimeResult<(), String> {
         let txt = self
-            .get_curr_elem()?
+            .get_curr_elem()
+            .await?
             .text()
             .await
             .map_err(|_| self.error("Error getting text from element"))?;
@@ -519,13 +556,19 @@ impl Interpreter {
     pub async fn click(&mut self) -> RuntimeResult<(), String> {
         self.resolve_label_to_input().await?;
 
+        // We need to wait for the element to be clickable by default,
+        // but also account for weird htmls structures. So, we'll
+        // wait for the element to be clickable, but ignore the error if
+        // there is one.
+        let _ = self.get_curr_elem().await?.wait_until().clickable().await;
+
         self.driver
             .action_chain()
-            .move_to_element_center(self.get_curr_elem()?)
+            .move_to_element_center(self.get_curr_elem().await?)
             .click()
             .perform()
             .await
-            .map_err(|_| self.error("Error clicking element"))
+            .map_err(|e| self.error(&format!("Error clicking element: {}", e)))
     }
 
     /// Tries to type into the current element
@@ -535,13 +578,15 @@ impl Interpreter {
         self.resolve_label_to_input().await?;
 
         // Clear the element
-        self.get_curr_elem()?
+        self.get_curr_elem()
+            .await?
             .clear()
             .await
             .map_err(|_| self.error("Error clearing element"))?;
 
         // Type into the element
-        self.get_curr_elem()?
+        self.get_curr_elem()
+            .await?
             .send_keys(txt)
             .await
             .map_err(|_| self.error("Error typing into element"))
@@ -564,12 +609,16 @@ impl Interpreter {
         scroll_into_view: bool,
     ) -> RuntimeResult<(), String> {
         let locator = self.resolve(locator)?;
+
+        // Store the locator in case we need to re-execute locate command (stale elemeent, etc.)
+        self.locator = Some(locator.clone());
+
         for wait in [0, 5, 10, 20, 30, 60] {
-            
             // Locate an input element by its placeholder
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//input[@placeholder='{}']", locator)))
+                .and_displayed()
                 .wait(Duration::from_secs(wait), Duration::from_secs(1))
                 .first()
                 .await
@@ -581,6 +630,7 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//*[text()='{}']", locator)))
+                .and_displayed()
                 .nowait()
                 .first()
                 .await
@@ -592,6 +642,7 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//*[contains(text(), '{}')]", locator)))
+                .and_displayed()
                 .nowait()
                 .first()
                 .await
@@ -603,6 +654,7 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//*[@title='{}']", locator)))
+                .and_displayed()
                 .nowait()
                 .first()
                 .await
@@ -614,6 +666,7 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//*[@aria-label='{}']", locator)))
+                .and_displayed()
                 .nowait()
                 .first()
                 .await
@@ -622,12 +675,26 @@ impl Interpreter {
             }
 
             // Try to find an element by it's id
-            if let Ok(found_elem) = self.driver.query(By::Id(&locator)).nowait().first().await {
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::Id(&locator))
+                .and_displayed()
+                .nowait()
+                .first()
+                .await
+            {
                 return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
             // Try to find an element by it's name
-            if let Ok(found_elem) = self.driver.query(By::Name(&locator)).nowait().first().await {
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::Name(&locator))
+                .and_displayed()
+                .nowait()
+                .first()
+                .await
+            {
                 return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
@@ -635,6 +702,7 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::ClassName(&locator))
+                .and_displayed()
                 .nowait()
                 .first()
                 .await
