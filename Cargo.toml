@@ -24,3 +24,8 @@ tracing-subscriber = "0.3.16"
 walkdir = "2.3.2"
 csv = "1.1.6"
 webdriver-install = "0.3.2"
+serde = { version = "1.0.152", features = ["serde_derive", "derive"] }
+build_html = "2.2.0"
+serde_json = "1.0.91"
+sailfish = "0.5.0"
+uuid = { version = "1.2.2", features = ["v4"] }

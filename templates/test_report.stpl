@@ -1,0 +1,114 @@
+<html>
+<head>
+    <title><%= format!("Test Report: {}", &inner.name) %></title>
+    <style>
+        body {
+            text-align: center;
+        }
+
+        img {
+            width: 50vw;
+            height: auto;
+        }
+
+        header, footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            background: #368657;
+            color: white;
+            font-weight: bold;
+            font-style: italic;
+            text-align: center;
+            vertical-align: middle;
+        }
+        header {
+            top: 0;
+        }
+        footer {
+            bottom: 0;
+        }
+
+        header h1 {
+            font-size: 18px;
+        }
+
+        header h2 {
+            font-size: 16px;
+        }
+
+        .container {
+            width: 70 vw;
+            top: 100px;
+            bottom: 100px;
+            overflow: hidden;
+            padding-top: 100px;
+            padding-bottom: 100px;
+            text-align: left;
+        }
+
+        div {
+            font-size: 16px;
+        }
+
+        .comment {
+            color: #d7cbb2;
+        }
+
+        .successful-stmt {
+            color: #368657;
+        }
+
+        .errored-stmt {
+            color: #b52d0e;
+        }
+
+        .error {
+            color: #d7cbb2;
+            font-size: 14px;
+            font-style: italic;
+        }
+    </style>
+</head>
+  <body>
+    <%# Screenshot count %>
+    <% let mut screenshot_count = 0; %>
+    <% let mut had_stmt = false; %>
+
+    <header>
+        <h1><%= format!("Test Report: {}", &inner.name) %></h1>
+        <h2><%= format!("Executed at: {}", &inner.date_time) %></h2>
+    </header>
+    <div class="container">
+    <% for stmt in &inner.executed_stmts { %>
+        <% if stmt.text.starts_with("#") { %>
+        <%# Comments %>
+            <div class="comment"><%= &stmt.text %></div>
+        <% } %>
+        <% if !stmt.text.starts_with("#") && stmt.error.is_none() { %>
+        <%# Successful Statements %>
+            <div class="successful-stmt"><%= format!("Statement Succeeded: {}", &stmt.text) %></div>
+            <% had_stmt = true; %>
+        <% } else if let Some(ref err) = stmt.error {%>
+        <%# Errored Statements %>
+            <div class="errored-stmt"><%= format!("Statement Failed: {}", &stmt.text) %></div>
+            <div class="error"><%= format!("Error: {}", err) %></div>
+            <% had_stmt = true; %>
+        <% } %>
+
+        <% for _ in 0..stmt.screenshots.len() { %>
+            <% screenshot_count += 1; %>
+            <div>
+                <img src=<%= format!("./screenshots/{}_screenshot_{}.png", &inner.name, screenshot_count) %> />
+            </div>
+        <% } %>
+
+        <% if had_stmt { %>
+            <br>
+            <% had_stmt = false; %>
+        <% } %>
+    <% } %>
+    </div>
+    <footer>Test Report created with SchnauzerUI</footer>
+  </body>
+</html>

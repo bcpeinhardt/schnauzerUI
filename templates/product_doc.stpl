@@ -1,0 +1,10 @@
+<html>
+  <body>
+    <% for stmt in &executed_stmts { %>
+      <div><%= &stmt.text %></div>
+    <% } %>
+    <footer>
+        <div>Product Documentation created with SchnauzerUI</div>
+    </footer>
+  </body>
+</html>

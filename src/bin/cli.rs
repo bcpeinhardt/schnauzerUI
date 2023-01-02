@@ -237,7 +237,7 @@ async fn repl_loop(
     let driver = new_driver(driver_config)
         .await
         .map_err(|_| "Error starting interpreter and/or browser")?;
-    let mut interpreter = Interpreter::new(driver, vec![], is_demo);
+    let mut interpreter = Interpreter::new(driver, vec![], is_demo, None);
 
     let mut script_buffer = String::new();
 

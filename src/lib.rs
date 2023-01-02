@@ -3,6 +3,7 @@ pub mod environment;
 pub mod interpreter;
 pub mod parser;
 pub mod scanner;
+pub mod test_report;
 
 use std::{
     panic,
@@ -13,8 +14,10 @@ use std::{
 use datatable::preprocess;
 use interpreter::Interpreter;
 use parser::Parser;
+use sailfish::TemplateOnce;
 use scanner::Scanner;
 use std::collections::HashMap;
+use test_report::{Report, TestReport};
 use thirtyfour::{prelude::WebDriverResult, DesiredCapabilities, WebDriver};
 use webdriver_install::Driver;
 
@@ -78,24 +81,24 @@ pub async fn run(
     let stmts = Parser::new().parse(tokens);
 
     // Interpret
-    let mut interpreter = Interpreter::new(driver, stmts, is_demo);
+    let mut interpreter = Interpreter::new(driver, stmts, is_demo, Some(Report::new(file_name.clone(), output_path.clone())));
     let res = interpreter.interpret(true).await;
+    let mut report = interpreter.reporter.unwrap();
 
-    output_path.push(format!("{}.log", file_name));
-    std::fs::write(output_path.clone(), interpreter.log_buffer).expect("Could not write log");
+    report.save_screenhots();
+
+    output_path.push(format!("{}.json", file_name));
+    std::fs::write(output_path.clone(), serde_json::to_string(&report)?)
+        .expect("Could not write log");
     output_path.pop();
-    if interpreter.screenshot_buffer.len() > 0 {
-        output_path.push("screenshots");
-        std::fs::create_dir_all(output_path.clone()).expect(&format!(
-            "Could not create directory: {}",
-            output_path.display()
-        ));
-        for (i, screenshot) in interpreter.screenshot_buffer.into_iter().enumerate() {
-            let mut op = output_path.clone();
-            op.push(format!("{}_screenshot_{}.png", file_name, i));
-            std::fs::write(op, screenshot).expect("Could not write screenshot");
-        }
-    }
+
+    output_path.push(format!("{}.html", file_name));
+    std::fs::write(
+        output_path.clone(),
+        TestReport { inner: report }.render_once().expect("Could not render template"),
+    )
+    .expect("Could not create html report");
+    output_path.pop();
 
     res
 }
@@ -105,7 +108,7 @@ pub async fn run_no_log(code: String, driver: WebDriver) -> WebDriverResult<bool
     let tokens = scanner.scan();
 
     let stmts = Parser::new().parse(tokens);
-    let mut interpreter = Interpreter::new(driver, stmts, false);
+    let mut interpreter = Interpreter::new(driver, stmts, false, None);
     interpreter.interpret(true).await
 }
 

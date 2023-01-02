@@ -7,6 +7,7 @@ use thirtyfour::{components::SelectElement, prelude::*};
 use crate::{
     environment::Environment,
     parser::{Cmd, CmdParam, CmdStmt, IfStmt, SetVariableStmt, Stmt},
+    test_report::{ExecutedStmt, Report},
 };
 
 /// Represent the Severity of an error within the interpreter (i.e. how to respond to an error).
@@ -51,8 +52,8 @@ pub struct Interpreter {
     tried_again: bool,
 
     /// The progress of the program is stored into a buffer to optionally be written to a file
-    pub log_buffer: String,
-    pub screenshot_buffer: Vec<Vec<u8>>,
+    pub reporter: Option<Report>,
+    pub screenshot_buf: Vec<Vec<u8>>,
 
     /// Denotes whether the program is in "demo" mode
     is_demo: bool,
@@ -60,7 +61,12 @@ pub struct Interpreter {
 
 impl Interpreter {
     /// Constructor for the Interpreter. Registers a webdriver against a standalone selenium grid running at port 4444.
-    pub fn new(driver: WebDriver, stmts: Vec<Stmt>, is_demo: bool) -> Self {
+    pub fn new(
+        driver: WebDriver,
+        stmts: Vec<Stmt>,
+        is_demo: bool,
+        reporter: Option<Report>,
+    ) -> Self {
         let stmts = stmts.into_iter().rev().collect();
 
         Self {
@@ -71,21 +77,11 @@ impl Interpreter {
             had_error: false,
             stmts_since_last_error_handling: vec![],
             tried_again: false,
-            log_buffer: String::new(),
-            screenshot_buffer: vec![],
+            reporter,
+            screenshot_buf: vec![],
             is_demo,
             locator: None,
         }
-    }
-
-    fn log_cmd(&mut self, msg: &str) {
-        self.log_buffer.push_str(&format!("Info: {}", msg));
-        self.log_buffer.push_str("\n");
-    }
-
-    fn log_err(&mut self, msg: &str) {
-        self.log_buffer.push_str(&format!("Error: {}", msg));
-        self.log_buffer.push_str("\n");
     }
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
@@ -97,22 +93,33 @@ impl Interpreter {
         self.tried_again = false;
 
         while let Some(stmt) = self.stmts.pop() {
-            if !self.had_error {
-                self.log_cmd(&stmt.to_string());
-            }
-
-            if let Err((e, sev)) = self.execute_stmt(stmt).await {
-                match sev {
-                    Severity::Exit => {
-                        self.log_err(&e);
-                        if close_driver {
-                            self.driver.close_window().await?;
-                        }
-                        return Ok(true);
+            match self.execute_stmt(stmt.clone()).await {
+                Ok(()) => {
+                    if let Some(ref mut reporter) = self.reporter {
+                        reporter.add_stmt(ExecutedStmt {
+                            text: stmt.to_string(),
+                            error: None,
+                            screenshots: std::mem::replace(&mut self.screenshot_buf, vec![]),
+                        });
                     }
-                    Severity::Recoverable => {
-                        self.log_err(&e);
-                        self.had_error = true;
+                }
+                Err((e, sev)) => {
+                    if let Some(ref mut reporter) = self.reporter {
+                        // report the error
+                        reporter.add_stmt(ExecutedStmt {
+                            text: stmt.to_string(),
+                            error: Some(e),
+                            screenshots: std::mem::replace(&mut self.screenshot_buf, vec![]),
+                        });
+                    }
+
+                    match sev {
+                        Severity::Exit => {
+                            break;
+                        }
+                        Severity::Recoverable => {
+                            self.had_error = true;
+                        }
                     }
                 }
             }
@@ -534,13 +541,12 @@ impl Interpreter {
 
     /// Takes a screenshot of the page.
     pub async fn screenshot(&mut self) -> RuntimeResult<(), String> {
-        self.log_cmd(&format!("Taking a screenshot"));
         let ss = self
             .driver
             .screenshot_as_png()
             .await
             .map_err(|_| self.error("Error taking screenshot."))?;
-        self.screenshot_buffer.push(ss);
+        self.screenshot_buf.push(ss);
         Ok(())
     }
 
