@@ -63,6 +63,10 @@ different.
 
 To create a "Datatable", create a CSV file with a header for each variable you need in the test.
 Then, create a row for each test case. In your SchnauzerUI script, anytime you want to use a variable,
-use `<VariableName>`. Then, run the script with the flag `-x <path-to-datatable>.csv"`.
+use `<VariableName>`. Then, run the script with the flag `-x <path-to-datatable>.csv"`. For example:
+```
+locate "Username" and type "<email>"
+```
+will look for a header with the text email in the datable.
 
 Most will want to use Excel, which is fine! Just save the file as a CSV when you're done.
