@@ -8,21 +8,19 @@ The output should look something like this:
 ```
 SchnauzerUI is a DSL for automated web UI testing
 
-Usage: sui [OPTIONS] <--input-dir <INPUT_DIR>|--input-filepath <INPUT_FILEPATH>|--repl>
+Usage: sui [OPTIONS] <--input-filepath <INPUT_FILEPATH>|--repl>
 
 Options:
-  -d, --input-dir <INPUT_DIR>
-          Path to a directory of scripts to run
   -f, --input-filepath <INPUT_FILEPATH>
           Path to a SchnauzerUI .sui file to run
   -i, --repl
           Run SchnauzerUI in a REPL
   -o, --output-dir <OUTPUT_DIR>
-          When --dir or --filepath passed, path to a directory for logs and screenshots. When --repl passed, path to a directory for the script to record the repl interactions
+          When --filepath passed, path to a directory for logs and screenshots. When --repl passed, path to a directory for the script to record the repl interactions
   -z, --headless
           Whether or not to display the browsers while the tests are running
   -b, --browser <BROWSER>
-          Which browser to use. Supports "firefox" or "chrome". Defaults to chrome
+          Which browser to use. Supports "firefox" or "chrome". Defaults to chrome [default: chrome]
   -x, --datatable <DATATABLE>
           Path to an excel file which holds variable values for test runs
       --demo
@@ -31,6 +29,7 @@ Options:
           Print help information
   -V, --version
           Print version information
+
 ```
 
 ## REPL/Iteractive Mode
@@ -63,7 +62,7 @@ testing tools provide support for specifying multiple test cases via a CSV file.
 different. 
 
 To create a "Datatable", create a CSV file with a header for each variable you need in the test.
-Then, create a row for each test case. In you're SchnauzerUI script, anytime you want to use a variable,
+Then, create a row for each test case. In your SchnauzerUI script, anytime you want to use a variable,
 use `<VariableName>`. Then, run the script with the flag `-x <path-to-datatable>.csv"`.
 
 Most will want to use Excel, which is fine! Just save the file as a CSV when you're done.

@@ -1,9 +1,7 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use clap::{ArgGroup, Parser};
-use futures::future::join_all;
 use promptly::{prompt, prompt_default};
-use walkdir::WalkDir;
 
 use schnauzer_ui::{
     datatable::read_csv, install_drivers, interpreter::Interpreter, new_driver, parser::Stmt, run,
@@ -16,11 +14,8 @@ use schnauzer_ui::{
 #[command(group(
     ArgGroup::new("script_path")
         .required(true)
-        .args(["input_dir", "input_filepath", "repl"])))]
+        .args(["input_filepath", "repl"])))]
 struct Cli {
-    /// Path to a directory of scripts to run
-    #[arg(short = 'd', long)]
-    input_dir: Option<PathBuf>,
 
     /// Path to a SchnauzerUI .sui file to run
     #[arg(short = 'f', long)]
@@ -30,7 +25,7 @@ struct Cli {
     #[arg(short = 'i', long)]
     repl: bool,
 
-    /// When --dir or --filepath passed, path to a directory for logs and screenshots.
+    /// When --filepath passed, path to a directory for logs and screenshots.
     /// When --repl passed, path to a directory for the script to record the repl interactions.
     #[arg(short, long)]
     output_dir: Option<PathBuf>,
@@ -77,7 +72,6 @@ fn main() {
 
 async fn start(
     Cli {
-        input_dir,
         input_filepath,
         repl,
         mut output_dir,
@@ -130,21 +124,10 @@ async fn start(
     };
 
     // Delegate based on provided cli arguments
-    match (input_dir, input_filepath, repl) {
-        // They provided a directory, so verify it's a directory and run all the .sui files in the directory
-        (Some(dir), None, false) => {
-            if !dir.is_dir() {
-                eprintln!(
-                    "Usage: dir flag must be a directory, but received {}",
-                    dir.display()
-                );
-                return;
-            }
-            run_dir(dir, output_dir, driver_config, demo).await
-        }
+    match (input_filepath, repl) {
 
         // They provided a filepath, so verify it's a file and just run the given file
-        (None, Some(filepath), false) => {
+        (Some(filepath), false) => {
             if !filepath.is_file() {
                 eprintln!(
                     "Usage: filepath flag must be a file, but received {}",
@@ -162,7 +145,7 @@ async fn start(
 
         // They provided the repl flag, so run in repl mode.
         // The output directory should default to the current directory.
-        (None, None, true) => {
+        (None, true) => {
             if let Err(e) = repl_loop(output_dir.unwrap_or(".".into()), driver_config, demo).await {
                 eprintln!("REPL encountered an error: {}", e);
             }
@@ -198,35 +181,6 @@ async fn run_file(
     run(code, output_filepath, file_name, driver, dt, is_demo)
         .await
         .expect("Oh no!");
-}
-
-/// Walks a directory and runs every sui file it finds as schnauzer ui code.
-/// Scripts run concurrently in different threads.
-/// The output directory should default to the directory of the currently running script.
-async fn run_dir(
-    directory: PathBuf,
-    output_dir: Option<PathBuf>,
-    driver_config: WebDriverConfig,
-    is_demo: bool,
-) {
-    let mut tests = Vec::new();
-    for entry in WalkDir::new(&directory)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let op = output_dir.clone();
-        tests.push(tokio::spawn(async move {
-            if let Some(Some("sui")) = entry.path().extension().map(|os_str| os_str.to_str()) {
-                let op = op
-                    .clone()
-                    .or(entry.clone().path().parent().map(|p| p.to_path_buf()))
-                    .unwrap_or(".".into());
-                run_file(entry.into_path(), op, driver_config, None, is_demo).await;
-            }
-        }));
-    }
-    join_all(tests).await;
 }
 
 async fn repl_loop(

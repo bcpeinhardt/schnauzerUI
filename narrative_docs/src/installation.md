@@ -9,7 +9,7 @@ you want to test in. Just make sure to have ports 4444 and 9515 open. If you don
 then you're probably good to go.
 
 To install SchnauzerUI, check [github](https://github.com/bcpeinhardt/schnauzerUI) for a 
-download link or your operating system. Be sure to save it somewhere in your PATH.
+download link for your operating system. Be sure to save it somewhere in your PATH.
 Alternatively, if you have the rust toolchain installed, you can build it from source by running
 `cargo install https://github.com/bcpeinhardt/schnauzerUI`
 Also, go ahead and add `$HOME/.webdrivers` to your path as well. This is where chromedriver

@@ -11,7 +11,8 @@ locate "Password" and type "Password123!"
 # Click the submit button
 locate "Submit" and click
 ```
-A SchnauzerUI script is composed of "statements" made up of "commands" that execute on top of running Selenium webdrivers.
+A SchnauzerUI script is composed of "statements" made up of "commands".
+
 A `#` creates a comment statement. Comments in SchnauzerUI are automatically added to test reports.
 The `locate` command locates a WebElement in the most straightforward way possible. It begins with
 aspects of the element that are __visible to the user__ (placeholder, text). This is important for a few reasons:
@@ -24,13 +25,11 @@ Then, the `locate` command can default to more technology specific locators, in 
 test authoring (id, name, title, class, xpath)
 
 Once an element is in focus (i.e. located), any subsequent commands will be executed against it. Commands relating
-to web elements include `click`, `type`, and `read-to` (a command for storing the text of a web element as a variable).
+to web elements include `click`, `type`, and `read-to` (a command for storing the text of a web element as a variable). The complete list of statements and commands lives [here](statements_and_commands.md)
 
 ### Smart Swap
 
-To ensure point number 1, SchnauzerUI smart swaps elements for given commands. Locate select elements by just the visible text of the default option. Locate form inputs and textareas by their containing or associated (for attribute) labels. This makes it dead simple perform complex UI interactions. 
-
-The complete list of statements and commands lives [here](statements_and_commands.md)
+To ensure point number 1, SchnauzerUI smart swaps elements for given commands. Locate select elements by just the visible text of the default option. Locate form inputs and textareas by their labels. This makes it dead simple perform complex UI interactions. 
 
 ## Error Handling
 UI tests can be brittle. Sometimes you simply want to write a long
