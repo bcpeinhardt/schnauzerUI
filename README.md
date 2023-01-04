@@ -6,6 +6,13 @@
  test suite that provides more complexity than value, SchnauzerUI may be a good
  choice for you. <br><br>
 
+ <div style="width:60px ; height:60px">
+![REPL Driven Development](/schnauzerUI/misc/repl.png?raw=true "REPL Driven Development")
+<div>
+<div style="width:60px ; height:60px">
+![Test Report](/schnauzerUI/misc/test_report.png?raw=true "Test Report")
+<div>
+
  SchnauzerUI takes a radically different approach to automated UI testing than 
  other frameworks. It is designed to empower manual testers to begin doing automated
  testing without learning to code or overhauling their existing
