@@ -1,16 +1,26 @@
 # This sui script contains most of the tests for all SchnauzerUI functionality.
 # Navigate to the dedicated testing site.
 url "https://bcpeinhardt.github.io/SchnauzerUITestingSite/"
+
 # Test locating label and typing into associated text input using for attribute
 locate "First Name" and type "Ben"
+
 # Test locating label and typing into contained text input
 locate "Last Name" and type "Peinhardt"
+
 # Test locating button by its text and click it. Screenshot sould show the button
 # has a green background color.
 locate "Submit" and click
+
 # Test variable by saving text and typing into field
 save "Wow" as wow
-locate "Type the text Wow into this field, but save the text as a variable first"
-type wow
+locate "Type the text Wow into this field, but save the text as a variable first" and type wow
+
+# Type into input if it is present
+if locate "Type into me if I exist" then type "located with if stmt"
+
+# Demonstrate locate doesn't cause error in if stmt 
+if locate "I dont exist" then click
+
 # Take final test screenshot for visual inspection
 screenshot
