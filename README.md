@@ -2,14 +2,13 @@
 
  Maintaining huge automated E2E test suites comes with enormous complexity.
  Eventually, engineers spend more time maintaining the tests and the framework
- than they do testing new functionality. If you work on an automated
- test suite that provides more complexity than value, SchnauzerUI may be a good
- choice for you. <br><br>
+ than they do testing new functionality. If you're trying to transition from
+ manual testing processes to an automated testing strategy, SchnauzerUI can help
+ you get the benefits of automation without overhauling existing processes. <br><br>
 
  SchnauzerUI takes a radically different approach to automated UI testing than 
  other frameworks. It is designed to empower manual testers to begin doing automated
- testing without learning to code or overhauling their existing
- testing processes. It achieves this in a few ways: <br><br>
+ testing without learning to code. It achieves this in a few ways: <br><br>
 
   - SchnauzerUI is, first and foremost, a DSL (Domain Specific Language) for web automation.
   Interacting with websites programmatically is a very specific task, and testers shouldn't
