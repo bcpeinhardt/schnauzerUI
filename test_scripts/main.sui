@@ -16,11 +16,24 @@ locate "Submit" and click
 save "Wow" as wow
 locate "Type the text Wow into this field, but save the text as a variable first" and type wow
 
-# Type into input if it is present
+# Test type into input if it is present using if stmt
 if locate "Type into me if I exist" then type "located with if stmt"
 
-# Demonstrate locate doesn't cause error in if stmt 
+# Test locate doesn't cause error in if stmt 
 if locate "I dont exist" then click
+
+# Test catch-error recovers from error and reports correctly
+# This stmt SHOULD SHOW AN ERROR but the script should continue
+locate "I dont exist"
+catch-error: screenshot
+
+# Locator tests
+locate "partial text test" and click
+locate "locate-by-title" and click
+locate "locate-by-id" and click
+locate "locate-by-class" and click
+locate "locate-by-name" and click
+locate "//p[@id='locate-by-xpath']" and click
 
 # Take final test screenshot for visual inspection
 screenshot

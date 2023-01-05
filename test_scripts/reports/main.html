@@ -77,7 +77,7 @@
 
     <header>
         <h1>Test Report: main</h1>
-        <h2>Executed at: Thu Jan  5 20:04:45 2023</h2>
+        <h2>Executed at: Thu Jan  5 20:38:44 2023</h2>
     </header>
     <div class="container">
     
@@ -237,7 +237,7 @@
     
         
         
-            <div class="comment"># Type into input if it is present</div>
+            <div class="comment"># Test type into input if it is present using if stmt</div>
         
         
 
@@ -261,7 +261,7 @@
     
         
         
-            <div class="comment"># Demonstrate locate doesn&#039;t cause error in if stmt </div>
+            <div class="comment"># Test locate doesn&#039;t cause error in if stmt </div>
         
         
 
@@ -273,6 +273,154 @@
         
         
             <div class="successful-stmt">Statement Succeeded: if locate &quot;I dont exist&quot; then click</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+            <div class="comment"># Test catch-error recovers from error and reports correctly</div>
+        
+        
+
+        
+
+        
+    
+        
+        
+            <div class="comment"># This stmt SHOULD SHOW AN ERROR but the script should continue</div>
+        
+        
+
+        
+
+        
+    
+        
+        
+        
+            <div class="errored-stmt">Statement Failed: locate &quot;I dont exist&quot;</div>
+            <div class="error">Error: Could not locate the element</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: catch-error: screenshot</div>
+            
+        
+
+        
+            
+            <div>
+                <img src=./screenshots/main_screenshot_1.png />
+            </div>
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+            <div class="comment"># Locator tests</div>
+        
+        
+
+        
+
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: locate &quot;partial text test&quot; and click</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: locate &quot;locate-by-title&quot; and click</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: locate &quot;locate-by-id&quot; and click</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: locate &quot;locate-by-class&quot; and click</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: locate &quot;locate-by-name&quot; and click</div>
+            
+        
+
+        
+
+        
+            <br>
+            
+        
+    
+        
+        
+        
+            <div class="successful-stmt">Statement Succeeded: locate &quot;//p[@id=&#039;locate-by-xpath&#039;]&quot; and click</div>
             
         
 
@@ -303,7 +451,7 @@
         
             
             <div>
-                <img src=./screenshots/main_screenshot_1.png />
+                <img src=./screenshots/main_screenshot_2.png />
             </div>
         
 
