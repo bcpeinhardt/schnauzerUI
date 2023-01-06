@@ -35,5 +35,13 @@ locate "locate-by-class" and click
 locate "locate-by-name" and click
 locate "//p[@id='locate-by-xpath']" and click
 
+# Do a locate-no-scroll to make sure it doesn't error
+# Don't have a good way of testing much beyond that
+locate-no-scroll "partial text test"
+
+# Test writing the text of an element to an input
+locate "read-to-test" and read-to test_txt
+locate "Write the text here..." and type test_txt
+
 # Take final test screenshot for visual inspection
 screenshot
