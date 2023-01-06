@@ -215,6 +215,7 @@ impl Parser {
             let stmt = self.parse_cmd_stmt()?;
             Ok(Stmt::CatchErr(stmt))
         } else if self.advance_on(TokenType::Save).is_some() {
+
             let value = self
                 .advance_on(TokenType::String("n/a".to_owned()))
                 .ok_or(self.error("Expected some txt"))?;

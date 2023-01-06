@@ -619,7 +619,7 @@ impl Interpreter {
         // Store the locator in case we need to re-execute locate command (stale elemeent, etc.)
         self.locator = Some(locator.clone());
 
-        for wait in [0, 5, 10, 20, 30, 60] {
+        for wait in [0, 5, 10, 20, 30] {
             // Locate an input element by its placeholder
             if let Ok(found_elem) = self
                 .driver

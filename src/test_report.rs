@@ -24,6 +24,8 @@ pub struct Report {
     /// The name of the script
     pub name: String,
 
+    pub num_screenshots: usize,
+
     pub output_dir: PathBuf,
 
     /// Date of test run
@@ -39,7 +41,8 @@ impl Report {
             date_time: Utc::now().format("%a %b %e %T %Y").to_string(),
             executed_stmts: vec![],
             name,
-            output_dir
+            output_dir,
+            num_screenshots: 0
         }
     }
 
@@ -54,9 +57,10 @@ impl Report {
             self.output_dir.display()
         ));
         for stmt in self.executed_stmts.iter() {
-            for (i, screenshot) in stmt.screenshots.iter().enumerate() {
+            for screenshot in stmt.screenshots.iter() {
+                self.num_screenshots += 1;
                 let mut op = self.output_dir.clone();
-                op.push(format!("{}_screenshot_{}.png", self.name, i + 1));
+                op.push(format!("{}_screenshot_{}.png", self.name, self.num_screenshots));
                 std::fs::write(op, screenshot).expect("Could not write screenshot");
             }
         }
