@@ -33,21 +33,22 @@ where
 }
 
 pub fn install_drivers() {
+    std::fs::create_dir_all("/tmp/webdrivers").expect("Could not create webdrivers directory");
     Driver::Chrome
-        .install()
+        .install_into(PathBuf::from("/tmp/webdrivers"))
         .expect("Could not install chromedriver");
     Driver::Gecko
-        .install()
+        .install_into(PathBuf::from("/tmp/webdrivers"))
         .expect("Could not install geckodriver");
 }
 
 pub fn start_drivers() -> (Child, Child) {
-    let geckodriver = Command::new("geckodriver")
+    let geckodriver = Command::new("/tmp/webdrivers/geckodriver")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .expect("Could not start geckodriver");
-    let chromedriver = Command::new("chromedriver")
+    let chromedriver = Command::new("/tmp/webdrivers/chromedriver")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
