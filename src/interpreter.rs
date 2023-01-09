@@ -509,7 +509,7 @@ impl Interpreter {
         };
         self.get_curr_elem()
             .await?
-            .send_keys("" + key_to_press)
+            .send_keys("" + &key_to_press)
             .await
             .map_err(|_| {
                 self.error("Error pressing key. Make sure you have an element in focus first.")
