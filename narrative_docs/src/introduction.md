@@ -13,8 +13,8 @@ locate "Search" and type "cats" and press "Enter"
 ```
 
 This is the only code necessary to write in order to run the test in a live
-browser and generate a test report. You can place this code in a file called `yt.sui`
-and run the test with `sui -f ./yt.sui`. It will launch chrome, perform 
+browser and generate a test report. You can place this code in a file called `myTest.sui`
+and run the test with `sui -f ./myTest.sui`. It will launch chrome, perform 
 the search, and produce an html test report as well as json output. 
 
 This works

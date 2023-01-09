@@ -34,20 +34,14 @@ To ensure point number 1, SchnauzerUI smart swaps elements for given commands. L
 ## Error Handling
 UI tests can be brittle. Sometimes you simply want to write a long
 test flow (even when testing gurus tell you not too) without it bailing at the first slow page load. For this, SchnauzerUI
-provides the `catch-error:` command for gracefully recovering from errors and resuming test runs. We can improve the
-previous test example like so
+provides the `catch-error:` command for gracefully recovering from errors and resuming test runs:
 ```SchnauzerUI
-# Type in username (located by labels)
-locate "Username" and type "test@test.com"
-
-# Type in password (located by placeholder)
-locate "Password" and type "Password123!"
-
-# Click the submit button (located by element text)
-locate "Submit" and click
+...
 
 # This page is quite slow to load, so we'll try again if something goes wrong
 catch-error: screenshot and refresh and try-again
+
+...
 ................
 ```
 Here, the `catch-error:` command gives us the chance to reset the page by refreshing
