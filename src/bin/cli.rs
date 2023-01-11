@@ -49,6 +49,9 @@ struct Cli {
     /// "Bring Your Own Drivers". Turns off driver management so you can run against external processes.
     #[arg(long)]
     byod: bool,
+
+    #[arg(long)]
+    override_port: Option<usize>
 }
 
 fn main() {
@@ -92,7 +95,8 @@ async fn start(
         browser,
         datatable,
         demo,
-        byod,
+        byod: _,
+        override_port
     }: Cli,
 ) {
     // Resolve browser to a supported browser
@@ -108,10 +112,13 @@ async fn start(
         }
     };
 
-    let port = match browser {
-        SupportedBrowser::FireFox => 4444,
-        SupportedBrowser::Chrome => 9515,
-    };
+    let port = override_port.unwrap_or_else(|| {
+        match browser {
+            SupportedBrowser::FireFox => 4444,
+            SupportedBrowser::Chrome => 9515,
+        }
+    });
+
 
     // Verify that the passed --output-dir could be a directory (a '.' would indicate a file instead)
     if let Some(ref mut output) = output_dir {
