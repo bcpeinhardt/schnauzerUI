@@ -16,7 +16,6 @@ use schnauzer_ui::{
         .required(true)
         .args(["input_filepath", "repl"])))]
 struct Cli {
-
     /// Path to a SchnauzerUI .sui file to run
     #[arg(short = 'f', long)]
     input_filepath: Option<PathBuf>,
@@ -46,20 +45,17 @@ struct Cli {
     /// Highlight elements which are located to more clearly demonstrate process
     #[arg(long)]
     demo: bool,
+
+    /// "Bring Your Own Drivers". Turns off driver management so you can run against external processes.
+    #[arg(long)]
+    byod: bool,
 }
 
 fn main() {
     // Parse cli options
     let cli = Cli::parse();
 
-    install_drivers();
-    with_drivers_running(|| {
-        // This sleep is here because the geckodriver and chromedriver actually
-        // take a moment to fully register after starting up.
-        // The release build is so fast the webdriver cant start because the drivers
-        // aren't initialized. This gives them 5 seconds to start up.
-        std::thread::sleep(std::time::Duration::from_secs(5));
-
+    if cli.byod {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -67,7 +63,24 @@ fn main() {
             .block_on(async {
                 start(cli).await;
             });
-    });
+    } else {
+        install_drivers();
+        with_drivers_running(|| {
+            // This sleep is here because the geckodriver and chromedriver actually
+            // take a moment to fully register after starting up.
+            // The release build is so fast the webdriver cant start because the drivers
+            // aren't initialized. This gives them 5 seconds to start up.
+            std::thread::sleep(std::time::Duration::from_secs(5));
+
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async {
+                    start(cli).await;
+                });
+        });
+    }
 }
 
 async fn start(
@@ -79,6 +92,7 @@ async fn start(
         browser,
         datatable,
         demo,
+        byod,
     }: Cli,
 ) {
     // Resolve browser to a supported browser
@@ -125,7 +139,6 @@ async fn start(
 
     // Delegate based on provided cli arguments
     match (input_filepath, repl) {
-
         // They provided a filepath, so verify it's a file and just run the given file
         (Some(filepath), false) => {
             if !filepath.is_file() {

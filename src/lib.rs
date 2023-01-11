@@ -82,7 +82,12 @@ pub async fn run(
     let stmts = Parser::new().parse(tokens);
 
     // Interpret
-    let mut interpreter = Interpreter::new(driver, stmts, is_demo, Some(Report::new(file_name.clone(), output_path.clone())));
+    let mut interpreter = Interpreter::new(
+        driver,
+        stmts,
+        is_demo,
+        Some(Report::new(file_name.clone(), output_path.clone())),
+    );
     let res = interpreter.interpret(true).await;
     let mut report = interpreter.reporter.unwrap();
 
@@ -96,7 +101,9 @@ pub async fn run(
     output_path.push(format!("{}.html", file_name));
     std::fs::write(
         output_path.clone(),
-        TestReport { inner: report }.render_once().expect("Could not render template"),
+        TestReport { inner: report }
+            .render_once()
+            .expect("Could not render template"),
     )
     .expect("Could not create html report");
     output_path.pop();

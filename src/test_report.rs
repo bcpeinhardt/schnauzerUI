@@ -20,7 +20,6 @@ pub struct ExecutedStmt {
 
 #[derive(Serialize, Deserialize)] // automatically implement `TemplateOnce` trait
 pub struct Report {
-
     /// The name of the script
     pub name: String,
 
@@ -32,7 +31,7 @@ pub struct Report {
     pub date_time: String,
 
     /// The test reported
-    pub executed_stmts: Vec<ExecutedStmt>
+    pub executed_stmts: Vec<ExecutedStmt>,
 }
 
 impl Report {
@@ -42,7 +41,7 @@ impl Report {
             executed_stmts: vec![],
             name,
             output_dir,
-            num_screenshots: 0
+            num_screenshots: 0,
         }
     }
 
@@ -60,7 +59,10 @@ impl Report {
             for screenshot in stmt.screenshots.iter() {
                 self.num_screenshots += 1;
                 let mut op = self.output_dir.clone();
-                op.push(format!("{}_screenshot_{}.png", self.name, self.num_screenshots));
+                op.push(format!(
+                    "{}_screenshot_{}.png",
+                    self.name, self.num_screenshots
+                ));
                 std::fs::write(op, screenshot).expect("Could not write screenshot");
             }
         }
@@ -70,5 +72,5 @@ impl Report {
 #[derive(TemplateOnce)]
 #[template(path = "test_report.stpl")]
 pub struct TestReport {
-    pub inner: Report
+    pub inner: Report,
 }
