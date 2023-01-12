@@ -234,14 +234,14 @@ async fn repl_loop(
         let stmts = schnauzer_ui::parser::Parser::new().parse(tokens);
 
         for stmt in stmts.into_iter() {
-            script_buffer.push_str(&format!("{}", stmt));
-            script_buffer.push('\n');
             match stmt {
                 Stmt::Comment(_) => {
                     script_buffer.push('\n');
                 }
                 _ => {}
             }
+            script_buffer.push_str(&format!("{}", stmt));
+            script_buffer.push('\n');
             match interpreter.execute_stmt(stmt).await {
                 Ok(_) => {}
                 Err(_) => {
