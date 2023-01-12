@@ -7,6 +7,7 @@ pub enum Stmt {
     SetVariable(SetVariableStmt),
     Comment(String),
     CatchErr(CmdStmt),
+    Under(CmdParam, CmdStmt),
 
     /// This statement is not meant to be parsed. It is added by the interpreter
     /// as part of try-again logic.
@@ -22,6 +23,7 @@ impl std::fmt::Display for Stmt {
             Stmt::Comment(s) => write!(f, "{}", s),
             Stmt::CatchErr(cs) => write!(f, "catch-error: {}", cs),
             Stmt::SetTryAgainFieldToFalse => write!(f, ""),
+            Stmt::Under(cp, cs) => write!(f, "under {}: {}", cp, cs),
         }
     }
 }
@@ -111,7 +113,7 @@ pub enum Cmd {
     Upload(CmdParam),
 
     AcceptAlert,
-    DismissAlert,
+    DismissAlert
 }
 
 impl std::fmt::Display for Cmd {
@@ -132,7 +134,7 @@ impl std::fmt::Display for Cmd {
             Cmd::DragTo(cp) => write!(f, "drag-to {}", cp),
             Cmd::Upload(cp) => write!(f, "upload {}", cp),
             Cmd::AcceptAlert => write!(f, "accept-alert"),
-            Cmd::DismissAlert => write!(f, "dismiss-alert"),
+            Cmd::DismissAlert => write!(f, "dismiss-alert")
         }
     }
 }
@@ -205,6 +207,10 @@ impl Parser {
     pub fn parse_stmt(&mut self) -> Result<Stmt, String> {
         if self.advance_on(TokenType::If).is_some() {
             self.parse_if_stmt().map(|is| Stmt::If(is))
+        } else if self.advance_on(TokenType::Under).is_some() {
+            let cp = self.parse_cmd_param()?;
+            let cs = self.parse_cmd_stmt()?;
+            Ok(Stmt::Under(cp, cs))
         } else if let Some(Token {
             token_type: TokenType::Comment(s),
             ..

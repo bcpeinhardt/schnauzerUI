@@ -57,6 +57,9 @@ pub struct Interpreter {
 
     /// Denotes whether the program is in "demo" mode
     is_demo: bool,
+
+    /// Base for when the under command is used
+    under_element: Option<WebElement>
 }
 
 impl Interpreter {
@@ -81,6 +84,7 @@ impl Interpreter {
             screenshot_buf: vec![],
             is_demo,
             locator: None,
+            under_element: None,
         }
     }
 
@@ -150,7 +154,7 @@ impl Interpreter {
         &mut self,
         elem: WebElement,
         scroll_into_view: bool,
-    ) -> RuntimeResult<(), String> {
+    ) -> RuntimeResult<WebElement, String> {
         // Scroll the element into view if specified, but don't fail on an error
         // as this can error falsely for thing like chat windows
         if scroll_into_view {
@@ -190,8 +194,8 @@ impl Interpreter {
         }
 
         // Set the current element
-        self.curr_elem = Some(elem);
-        Ok(())
+        self.curr_elem = Some(elem.clone());
+        Ok(elem)
     }
 
     /// Returns a reference to the current element for performing operations on, or an
@@ -248,6 +252,12 @@ impl Interpreter {
                     self.tried_again = false;
                     Ok(())
                 }
+                Stmt::Under(cp, cs) => {
+                    self.under(cp).await?;
+                    self.execute_cmd_stmt(cs).await?;
+                    self.under_element = None;
+                    Ok(())
+                },
             }
         } else {
             // Syncronizing after an error.
@@ -331,8 +341,8 @@ impl Interpreter {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
         match cmd {
-            Cmd::Locate(locator) => self.locate(locator, true).await,
-            Cmd::LocateNoScroll(locator) => self.locate(locator, false).await,
+            Cmd::Locate(locator) => self.locate(locator, true).await.map(|_| ()),
+            Cmd::LocateNoScroll(locator) => self.locate(locator, false).await.map(|_| ()),
             Cmd::Type(txt) => self.type_into_elem(txt).await,
             Cmd::Click => self.click().await,
             Cmd::Refresh => self.refresh().await,
@@ -361,6 +371,11 @@ impl Interpreter {
                     .await
             }
         }
+    }
+
+    async fn under(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+        self.under_element = Some(self.locate(cp, true).await?);
+        Ok(())
     }
 
     // Very often a user will locate an html label element and then
@@ -609,16 +624,149 @@ impl Interpreter {
 
     /// Attempt to locate an element on the page, testing the locator in the following precedence
     /// (placeholder, preceding label, text, id, name, title, class, xpath)
+    #[async_recursion]
     pub async fn locate(
         &mut self,
         locator: CmdParam,
-        scroll_into_view: bool,
-    ) -> RuntimeResult<(), String> {
+        scroll_into_view: bool
+    ) -> RuntimeResult<WebElement, String> {
         let locator = self.resolve(locator)?;
 
-        // Store the locator in case we need to re-execute locate command (stale elemeent, etc.)
+        // Store the locator in case we need to re-execute locate command (stale element, etc.)
         self.locator = Some(locator.clone());
 
+        // If we're in a state of "under", search from the base element
+        
+            if let Some(ref base_elem) = self.under_element {
+    
+                // Locate an input element by its placeholder
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&format!(".//input[@placeholder='{}']", locator)))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find the element by partial placeholder
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&format!(".//input[contains(@placeholder, '{}')]", locator)))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find the element by its text
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&format!(".//*[text()='{}']", locator)))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find the element by partial text
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&format!(".//*[contains(text(), '{}')]", locator)))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find an element by it's title
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&format!(".//*[@title='{}']", locator)))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to locate by aria-label
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&format!(".//*[@aria-label='{}']", locator)))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find an element by it's id
+                if let Ok(found_elem) = base_elem
+                    .query(By::Id(&locator))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find an element by it's name
+                if let Ok(found_elem) = base_elem
+                    .query(By::Name(&locator))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find an element by it's class
+                if let Ok(found_elem) = base_elem
+                    .query(By::ClassName(&locator))
+                    .and_displayed()
+                    .nowait()
+                    .first()
+                    .await
+                {
+                    
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+    
+                // Try to find an element by xpath
+                if let Ok(found_elem) = base_elem
+                    .query(By::XPath(&locator))
+                    .nowait()
+                    .first()
+                    .await
+                {
+                
+                    return self.set_curr_elem(found_elem, scroll_into_view).await;
+                }
+
+                // If we don't find it under the under elem, 
+                // go up one
+                self.under_element = base_elem.parent().await.ok();
+                return self.locate(CmdParam::String(locator), scroll_into_view).await;
+            }
+    
+        
+
+        // Regular queries
         for wait in [0, 5, 10, 20, 30] {
 
             // Locate an input element by its placeholder
