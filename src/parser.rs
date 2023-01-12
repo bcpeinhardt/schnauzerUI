@@ -113,7 +113,7 @@ pub enum Cmd {
     Upload(CmdParam),
 
     AcceptAlert,
-    DismissAlert
+    DismissAlert,
 }
 
 impl std::fmt::Display for Cmd {
@@ -134,7 +134,7 @@ impl std::fmt::Display for Cmd {
             Cmd::DragTo(cp) => write!(f, "drag-to {}", cp),
             Cmd::Upload(cp) => write!(f, "upload {}", cp),
             Cmd::AcceptAlert => write!(f, "accept-alert"),
-            Cmd::DismissAlert => write!(f, "dismiss-alert")
+            Cmd::DismissAlert => write!(f, "dismiss-alert"),
         }
     }
 }

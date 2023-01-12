@@ -89,7 +89,6 @@ impl std::fmt::Display for TokenType {
             TokenType::AcceptAlert => "accept-alert",
             TokenType::DismissAlert => "dismiss-alert",
             TokenType::Under => "under",
-            
         };
 
         write!(f, "{}", lexeme)
