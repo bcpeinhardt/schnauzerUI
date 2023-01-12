@@ -863,6 +863,17 @@ impl Interpreter {
                 return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
+            // Try to find an element by tag name
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::Tag(&locator))
+                .nowait()
+                .first()
+                .await
+            {
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
+            }
+
             // Try to find an element by xpath
             if let Ok(found_elem) = self
                 .driver
