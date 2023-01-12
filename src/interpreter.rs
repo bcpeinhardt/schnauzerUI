@@ -620,12 +620,25 @@ impl Interpreter {
         self.locator = Some(locator.clone());
 
         for wait in [0, 5, 10, 20, 30] {
+
             // Locate an input element by its placeholder
             if let Ok(found_elem) = self
                 .driver
                 .query(By::XPath(&format!("//input[@placeholder='{}']", locator)))
                 .and_displayed()
                 .wait(Duration::from_secs(wait), Duration::from_secs(1))
+                .first()
+                .await
+            {
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
+            }
+
+            // Try to find the element by partial placeholder
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::XPath(&format!("//input[contains(@placeholder, '{}')]", locator)))
+                .and_displayed()
+                .nowait()
                 .first()
                 .await
             {

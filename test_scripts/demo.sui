@@ -9,8 +9,8 @@ url "https://automationintesting.com/selenium/testpage/"
 # Locate an input by its label
 locate "First name" and type "Benjamin"
 
-# Or its placeholder
-locate "Enter your surname" and type "Peinhardt"
+# Or its placeholder (partial text too)
+locate "surname" and type "Peinhardt"
 
 # Built in select support
 locate "Gender" and select "Male"
