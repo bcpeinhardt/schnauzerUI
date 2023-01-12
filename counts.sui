@@ -1,7 +1,0 @@
-url "https://dev.counts.siteimpact.com"
-locate "Username" and type "ben.peinhardt@siteimpact.com" and locate "Password" and type "Peinhardt1!" and press "Enter"
-locate "ZIP Code" and click
-locate "(32801," and type "35203"
-locate "35203" and click
-under "Includes" locate "35203" and screenshot
-under "Selected Criteria" locate "ZIP Code" and click and locate "35203" and screenshot
