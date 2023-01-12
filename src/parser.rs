@@ -23,7 +23,7 @@ impl std::fmt::Display for Stmt {
             Stmt::Comment(s) => write!(f, "{}", s),
             Stmt::CatchErr(cs) => write!(f, "catch-error: {}", cs),
             Stmt::SetTryAgainFieldToFalse => write!(f, ""),
-            Stmt::Under(cp, cs) => write!(f, "under {}: {}", cp, cs),
+            Stmt::Under(cp, cs) => write!(f, "under {} {}", cp, cs),
         }
     }
 }
