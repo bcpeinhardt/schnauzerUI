@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{time::Duration, path::PathBuf};
 
 use async_recursion::async_recursion;
 use futures::TryFutureExt;
@@ -441,10 +441,14 @@ impl Interpreter {
         // Uploading to a file input is the same as typing keys into it,
         // but our users shouldn't have to know that.
 
-        let path = self.resolve(cp)?;
+        let path_str = self.resolve(cp)?;
+        let path = PathBuf::from(path_str);
+        let abs_path = path.canonicalize().map_err(|_| self.error("Error resolving path to file"))?;
+        let abs_path_str = abs_path.to_str().ok_or(self.error("Error converting absolute path to string"))?;
+
         self.get_curr_elem()
             .await?
-            .send_keys(path)
+            .send_keys(abs_path_str)
             .await
             .map_err(|_| self.error("Error uploading file"))
     }
@@ -703,7 +707,7 @@ impl Interpreter {
 
             // Try to find an element by it's id
             if let Ok(found_elem) = base_elem
-                .query(By::Id(&locator))
+                .query(By::XPath(&format!(".//*[@id='{}']", locator)))
                 .and_displayed()
                 .nowait()
                 .first()
@@ -735,7 +739,7 @@ impl Interpreter {
             }
 
             // Try to find an element by xpath
-            if let Ok(found_elem) = base_elem.query(By::XPath(&locator)).nowait().first().await {
+            if let Ok(found_elem) = base_elem.query(By::XPath(&format!(".{}", locator))).nowait().first().await {
                 return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
@@ -867,6 +871,7 @@ impl Interpreter {
             if let Ok(found_elem) = self
                 .driver
                 .query(By::Tag(&locator))
+                .and_displayed()
                 .nowait()
                 .first()
                 .await
