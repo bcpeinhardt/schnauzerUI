@@ -20,6 +20,7 @@ pub enum TokenType {
     AcceptAlert,
     DismissAlert,
     Under,
+    UnderActiveElement,
 
     // Literals (the associated string is the string literal)
     String(String),
@@ -89,6 +90,8 @@ impl std::fmt::Display for TokenType {
             TokenType::AcceptAlert => "accept-alert",
             TokenType::DismissAlert => "dismiss-alert",
             TokenType::Under => "under",
+            TokenType::UnderActiveElement => "under-active-element",
+            
         };
 
         write!(f, "{}", lexeme)
@@ -207,6 +210,7 @@ impl Scanner {
             "accept-alert" if !self.in_quotes => Some(self.token(TokenType::AcceptAlert)),
             "dismiss-alert" if !self.in_quotes => Some(self.token(TokenType::DismissAlert)),
             "under" if !self.in_quotes => Some(self.token(TokenType::Under)),
+            "under-active-element" if !self.in_quotes => Some(self.token(TokenType::UnderActiveElement)),
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with("\"")
                 && word.ends_with("\"")

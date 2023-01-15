@@ -8,6 +8,7 @@ pub enum Stmt {
     Comment(String),
     CatchErr(CmdStmt),
     Under(CmdParam, CmdStmt),
+    UnderActiveElement(CmdStmt),
 
     /// This statement is not meant to be parsed. It is added by the interpreter
     /// as part of try-again logic.
@@ -24,6 +25,7 @@ impl std::fmt::Display for Stmt {
             Stmt::CatchErr(cs) => write!(f, "catch-error: {}", cs),
             Stmt::SetTryAgainFieldToFalse => write!(f, ""),
             Stmt::Under(cp, cs) => write!(f, "under {} {}", cp, cs),
+            Stmt::UnderActiveElement(cs) => write!(f, "under-active-element {}", cs),
         }
     }
 }
@@ -211,6 +213,9 @@ impl Parser {
             let cp = self.parse_cmd_param()?;
             let cs = self.parse_cmd_stmt()?;
             Ok(Stmt::Under(cp, cs))
+        } else if self.advance_on(TokenType::UnderActiveElement).is_some() {
+            let cs = self.parse_cmd_stmt()?;
+            Ok(Stmt::UnderActiveElement(cs))
         } else if let Some(Token {
             token_type: TokenType::Comment(s),
             ..

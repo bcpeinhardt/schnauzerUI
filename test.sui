@@ -1,0 +1,22 @@
+# Navigate to counts and login
+url "https://dev.counts.siteimpact.com"
+locate "Username" and type "ben.peinhardt@siteimpact.com"
+locate "Password" and type "Peinhardt1!" and press "Enter"
+
+# Select the Automation Company
+locate "Search for a Company" and click and type "Automation Company"
+under-active-element locate "Automation Company" and click
+
+# Apply Birmingham Zip Code
+locate "ZIP Code" and click
+locate "32801" and type "35203"
+locate "Birmingham, AL" and click
+
+# Validate ZIP Code appears under Includes and Selected Criteria Sections
+under "Includes" locate "Birmingham, AL"
+under "Selected Criteria" locate "ZIP Code" and click and locate "Birmingham, AL"
+
+# Generate the count and verify the success pop-up appears
+locate "Get Count" and click
+locate "Recalculating"
+locate "Consumer Count Returned" and screenshot

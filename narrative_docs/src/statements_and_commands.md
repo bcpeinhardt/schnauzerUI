@@ -77,6 +77,14 @@ will click the navigation link, not the level one heading. This is not because t
 but because they are close together. The locate command searches children of the h3, then
 children of the div with class nav-title, then children of the div with class container before succeeding.
 
+### Under Active Element
+Works the same as the Under statement, but begins searching under the "active" element (the last
+element interacted with).
+
+Ex. Locate an element near the last element interacted with.
+
+`under-active-element locate subElement and click`
+
 # Commands
 
 ### url
@@ -122,7 +130,10 @@ Ex. Locate a button and click it
 `locate "login-btn" and click`
 
 ### type
-The `type` command will send text to the located element.
+In general, the `type` command will send text to the located element.
+In reality, the `type` command will click a located element then begin typing
+in the active element! This is usually the same thing, but better for complex UI components
+which switch the active element on their own.
 
 Ex. Type in a username
 

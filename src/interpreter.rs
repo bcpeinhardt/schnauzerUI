@@ -257,7 +257,15 @@ impl Interpreter {
                     self.execute_cmd_stmt(cs).await?;
                     self.under_element = None;
                     Ok(())
-                }
+                },
+                Stmt::UnderActiveElement(cs) => {
+                    let active_elm = self.driver.active_element().await.map_err(|_| self.error("Error getting active element."))?;
+                    self.under_element = Some(active_elm);
+                    self.execute_cmd_stmt(cs).await?;
+                    self.under_element = None;
+                    Ok(())
+                },
+                
             }
         } else {
             // Syncronizing after an error.
