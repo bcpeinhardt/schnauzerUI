@@ -597,16 +597,25 @@ impl Interpreter {
 
         self.resolve_label_to_input().await?;
 
-        // Clear the element
-        self.get_curr_elem()
-            .await?
+        // Instead of typing into the located element,
+        // we'll click the located element, then type 
+        // into the "active" element. This will a help
+        // a lot with custom popup typing interactions.
+
+        // Click the current element
+        self.click().await?;
+
+        // Get the active element
+        let active_elm = self.driver.active_element().await.map_err(|_| self.error("Could not locate active element"))?;
+
+        // Clear the element, but don't error if that fails
+        let _ = active_elm
             .clear()
             .await
-            .map_err(|_| self.error("Error clearing element"))?;
+            .map_err(|_| self.error("Error clearing element"));
 
         // Type into the element
-        self.get_curr_elem()
-            .await?
+        active_elm
             .send_keys(txt)
             .await
             .map_err(|_| self.error("Error typing into element"))
