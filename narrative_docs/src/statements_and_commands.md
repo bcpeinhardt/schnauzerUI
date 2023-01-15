@@ -49,6 +49,34 @@ Ex. Taking a screenshot from a script that reproduces a bug.
 
 `catch-error: screenshot`
 
+### Under
+An under statement changes the way locators work for a single line of code. It lets the 
+locator start searching for html by radiating out from a given element rather than starting
+at the top of the HTML document. It's especially useful for locating elements by visual text when
+that text is present multiple places on the page. 
+The scope of the search is not restricted to elements contained by the located element. Locators
+will still search the whole page, but they will start searching where you tell them. Consider the
+following HTML
+```
+<h1>Desired Text</h1>
+<div class="container">
+    <div class="nav-title">
+        <h3>Navigation</h3>
+    </div>
+    <div class="nav-body">
+        <a href="https://somesite.com">Desired Text</a>
+        ... more links
+    </div>
+</div>
+```
+the command
+```
+under "Navigation" locate "Desired Text" and click
+```
+will click the navigation link, not the level one heading. This is not because the link is "under" the h3 element,
+but because they are close together. The locate command searches children of the h3, then
+children of the div with class nav-title, then children of the div with class container before succeeding.
+
 # Commands
 
 ### url
@@ -71,15 +99,14 @@ Ex. Locate a submit button
 
 The locate command uses precedence to determine how to use the provided locator.
 
-- If there is an input element whose placeholder matches the provided value, will locate the input
-- If there is a label which precedes an input whose text matches the provided value, will locate the input
-- If there is an element whose text matches the provided value, will locate the element
-- If there is an element whose text contains the provided value, will locate the element
-- If there is an element whose title matches the provided value, will locate the element 
-- If there is an element whose id matches the provided value, will locate the element
-- If there is an element whose name matches the provided value, will locate the element
-- If there is an element which has a class that matches the provided value, will locate the element
-- If none of these locate the element, the provided value will be used as an xpath to locate the element.
+- Match a placeholder or partial placeholder
+- Match text or partial text
+- Match title attribute
+- Match aria-label
+- Match id attribute
+- Match name attribute
+- Match class attribute or partial class attribute
+- Match an XPath
 
 ### locate-no-scroll
 The `locate-no-scroll` command is the same as the locate command, but does not scroll the element from where
@@ -141,7 +168,7 @@ element to the element matching the provided locator.
 
 Ex. Imagine mapping headers to the correct column of an uploaded file.
 
-`locate "email" and drag-to "//div[contains(text(), '@')]"`
+`locate "email" and drag-to "@"`
 
 ### select
 The `select` command will select (by text) one of the options in a select element.
@@ -151,5 +178,26 @@ text.
 
 Ex. Login as an admin user.
 
-`locate "Select Role" and select "Admin User"
+`locate "Select Role" and select "Admin User"`
 
+### upload
+The `upload` command performs a basic file upload on an html input element of type file.
+The located element must be an `input` element. Very often, custom component is used which performs 
+the javascript to do the upload, which means you'll have to look in the html for the hidden input you 
+actually want to upload to.
+
+Ex. Upload file
+
+`locate "//input[@id='file-input']" and upload "./screenshots/main_screenshot_2.png"`
+
+Note: We are locating the input by xpath because it's not actually displayed on the page.
+Smart locators only return elements which are currently displayed.
+
+### accept-alert and dismiss-alert
+The `accept-alert` and `dismiss-alert` commands accept and dismiss alerts. 
+
+Ex. Accept cookie alert
+```
+# Accept cookie alert
+accept-alert
+```
