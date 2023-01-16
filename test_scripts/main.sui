@@ -3,7 +3,7 @@
 url "https://bcpeinhardt.github.io/SchnauzerUITestingSite/"
 
 # Test locating label and typing into associated text input using for attribute
-locate "First Name" and type "Ben"
+locate "First Name" and type "Ben Ben"
 
 # Test locating label and typing into contained text input
 locate "Last Name" and type "Peinhardt"

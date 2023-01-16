@@ -613,14 +613,17 @@ impl Interpreter {
         // Click the current element
         self.click().await?;
 
+        // Wait a second in case some javascript needs to happen 
+        // for fancy components
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
         // Get the active element
         let active_elm = self.driver.active_element().await.map_err(|_| self.error("Could not locate active element"))?;
 
         // Clear the element, but don't error if that fails
         let _ = active_elm
             .clear()
-            .await
-            .map_err(|_| self.error("Error clearing element"));
+            .await;
 
         // Type into the element
         active_elm
