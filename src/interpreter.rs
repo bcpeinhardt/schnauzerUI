@@ -419,27 +419,24 @@ impl Interpreter {
                 .await?
                 .attr("for")
                 .await
-                .map_err(|_| self.error("Unknown error"))?
-                .ok_or(self.error(
-                    "Label does not have a for attribute. Try locating the input directly",
-                ))?;
+                .map_err(|_| self.error("Unknown error"))?;
 
             // Try to find the input element with the corresponding id or name attribute
-            self.set_curr_elem(
-                self.driver
-                    .query(By::Id(&for_attr))
-                    .or(By::Name(&for_attr))
-                    .nowait()
-                    .first()
-                    .await
-                    .map_err(|_| {
-                        self.error(
-                            "Could not locate input element with corresponding for attribute",
-                        )
-                    })?,
-                false,
-            )
-            .await?;
+            if let Some(for_attr) = for_attr {
+
+                // Try to find the element
+                let label_target = self.driver
+                .query(By::Id(&for_attr))
+                .or(By::Name(&for_attr))
+                .nowait()
+                .first()
+                .await.ok();
+
+                // If we found an associated element, swap into current element
+                if let Some(target) = label_target {
+                    self.set_curr_elem(target, false).await?;
+                }
+            }
         }
 
         Ok(())
