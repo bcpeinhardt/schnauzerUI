@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use chrono::{Utc};
+use chrono::Utc;
 use sailfish::TemplateOnce;
 use serde::{Deserialize, Serialize};
 

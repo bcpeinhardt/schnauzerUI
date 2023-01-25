@@ -1,4 +1,4 @@
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 use async_recursion::async_recursion;
 use futures::TryFutureExt;
@@ -257,15 +257,18 @@ impl Interpreter {
                     self.execute_cmd_stmt(cs).await?;
                     self.under_element = None;
                     Ok(())
-                },
+                }
                 Stmt::UnderActiveElement(cs) => {
-                    let active_elm = self.driver.active_element().await.map_err(|_| self.error("Error getting active element."))?;
+                    let active_elm = self
+                        .driver
+                        .active_element()
+                        .await
+                        .map_err(|_| self.error("Error getting active element."))?;
                     self.under_element = Some(active_elm);
                     self.execute_cmd_stmt(cs).await?;
                     self.under_element = None;
                     Ok(())
-                },
-                
+                }
             }
         } else {
             // Syncronizing after an error.
@@ -386,9 +389,9 @@ impl Interpreter {
     // input element. We'll try to aid this convenient behavior by dynamically
     // swapping out the label for its input as the current element.
     // A label/input pair with the matching for/id attributes respectively,
-    // or a label/input pair where the label element contains the input element,
+    // or a label/input pair where the label element contains the input element or directly precedes it,
     // will be swapped.
-    async fn resolve_label_to_input(&mut self) -> RuntimeResult<(), String> {
+    async fn resolve_label(&mut self) -> RuntimeResult<(), String> {
         // Label with correct for attribute
         if self
             .get_curr_elem()
@@ -404,6 +407,7 @@ impl Interpreter {
                 .await?
                 .query(By::Tag("input"))
                 .or(By::Tag("textarea"))
+                .or(By::Tag("select"))
                 .nowait()
                 .first()
                 .await
@@ -423,19 +427,40 @@ impl Interpreter {
 
             // Try to find the input element with the corresponding id or name attribute
             if let Some(for_attr) = for_attr {
-
                 // Try to find the element
-                let label_target = self.driver
-                .query(By::Id(&for_attr))
-                .or(By::Name(&for_attr))
-                .nowait()
-                .first()
-                .await.ok();
+                let label_target = self
+                    .driver
+                    .query(By::Id(&for_attr))
+                    .or(By::Name(&for_attr))
+                    .nowait()
+                    .first()
+                    .await
+                    .ok();
 
                 // If we found an associated element, swap into current element
                 if let Some(target) = label_target {
                     self.set_curr_elem(target, false).await?;
+                    return Ok(());
                 }
+            }
+
+            // If the label doesn't contain the input or have an associated for attribute
+            // leading to the input, then check to see if there is an input element right
+            // after the label
+            let following_input = self
+                .get_curr_elem()
+                .await?
+                .query(By::XPath("./following-sibling::input"))
+                .or(By::XPath("./following-sibling::textarea"))
+                .or(By::XPath("./following-sibling::select"))
+                .nowait()
+                .first()
+                .await
+                .ok();
+
+            if let Some(elm) = following_input {
+                self.set_curr_elem(elm, false).await?;
+                return Ok(());
             }
         }
 
@@ -448,8 +473,12 @@ impl Interpreter {
 
         let path_str = self.resolve(cp)?;
         let path = PathBuf::from(path_str);
-        let abs_path = path.canonicalize().map_err(|_| self.error("Error resolving path to file"))?;
-        let abs_path_str = abs_path.to_str().ok_or(self.error("Error converting absolute path to string"))?;
+        let abs_path = path
+            .canonicalize()
+            .map_err(|_| self.error("Error resolving path to file"))?;
+        let abs_path_str = abs_path
+            .to_str()
+            .ok_or(self.error("Error converting absolute path to string"))?;
 
         self.get_curr_elem()
             .await?
@@ -469,6 +498,8 @@ impl Interpreter {
 
     pub async fn select(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
         let option_text = self.resolve(cp)?;
+
+        self.resolve_label().await?;
 
         // Sometimes, a Select element's only visible text on the page
         // is it's default option. Many users may try to locate
@@ -579,7 +610,7 @@ impl Interpreter {
 
     /// Tries to click on the currently located web element.
     pub async fn click(&mut self) -> RuntimeResult<(), String> {
-        self.resolve_label_to_input().await?;
+        self.resolve_label().await?;
 
         // We need to wait for the element to be clickable by default,
         // but also account for weird htmls structures. So, we'll
@@ -600,27 +631,29 @@ impl Interpreter {
     pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> RuntimeResult<(), String> {
         let txt = self.resolve(cmd_param)?;
 
-        self.resolve_label_to_input().await?;
+        self.resolve_label().await?;
 
         // Instead of typing into the located element,
-        // we'll click the located element, then type 
+        // we'll click the located element, then type
         // into the "active" element. This will a help
         // a lot with custom popup typing interactions.
 
         // Click the current element
         self.click().await?;
 
-        // Wait a second in case some javascript needs to happen 
+        // Wait a second in case some javascript needs to happen
         // for fancy components
         std::thread::sleep(std::time::Duration::from_secs(1));
 
         // Get the active element
-        let active_elm = self.driver.active_element().await.map_err(|_| self.error("Could not locate active element"))?;
+        let active_elm = self
+            .driver
+            .active_element()
+            .await
+            .map_err(|_| self.error("Could not locate active element"))?;
 
         // Clear the element, but don't error if that fails
-        let _ = active_elm
-            .clear()
-            .await;
+        let _ = active_elm.clear().await;
 
         // Type into the element
         active_elm
@@ -756,7 +789,12 @@ impl Interpreter {
             }
 
             // Try to find an element by xpath
-            if let Ok(found_elem) = base_elem.query(By::XPath(&format!(".{}", locator))).nowait().first().await {
+            if let Ok(found_elem) = base_elem
+                .query(By::XPath(&format!(".{}", locator)))
+                .nowait()
+                .first()
+                .await
+            {
                 return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
 
@@ -770,7 +808,6 @@ impl Interpreter {
 
         // Regular queries
         for wait in [0, 5, 10, 20, 30] {
-
             std::thread::sleep(std::time::Duration::from_secs(wait));
 
             // Locate an input element by its placeholder
