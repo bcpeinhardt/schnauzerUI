@@ -462,6 +462,30 @@ impl Interpreter {
                 self.set_curr_elem(elm, false).await?;
                 return Ok(());
             }
+
+            // If none of this works, perform a recursive search for the input element
+            // (like the "under" command but specifically for an input)
+            // Limit to 5 elements of depth b/c anything further is probably a bug.
+            // To do a full recursive search, users can use 
+            // `under "<label-text>" locate "input" and type "some text"`
+            for _ in 0..5 {
+                match self.get_curr_elem().await?.parent().await {
+                    Ok(parent) => {
+                        self.set_curr_elem(parent, false).await?;
+                        match self.get_curr_elem().await?.query(By::Tag("input"))
+                        .or(By::Tag("textarea"))
+                        .or(By::XPath("select"))
+                        .nowait().first().await.ok() {
+                            Some(elm) => {
+                                self.set_curr_elem(elm, false).await?;
+                                return Ok(());
+                            },
+                            None => continue,
+                        }
+                    },
+                    Err(_) => break, // the resolve failed but we'll keep going
+                }
+            }
         }
 
         Ok(())
@@ -780,6 +804,17 @@ impl Interpreter {
             // Try to find an element by it's class
             if let Ok(found_elem) = base_elem
                 .query(By::ClassName(&locator))
+                .and_displayed()
+                .nowait()
+                .first()
+                .await
+            {
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
+            }
+
+            // Try to find an element by tag name
+            if let Ok(found_elem) = base_elem
+                .query(By::Tag(&locator))
                 .and_displayed()
                 .nowait()
                 .first()
