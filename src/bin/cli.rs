@@ -3,6 +3,8 @@ use std::{collections::HashMap, path::PathBuf};
 use clap::{ArgGroup, Parser};
 use promptly::{prompt, prompt_default};
 
+use anyhow::{Result, bail, Context};
+
 use schnauzer_ui::{
     datatable::read_csv, install_drivers, interpreter::Interpreter, new_driver, parser::Stmt, run,
     scanner::Scanner, with_drivers_running, SupportedBrowser, WebDriverConfig,
@@ -64,7 +66,9 @@ fn main() {
             .build()
             .unwrap()
             .block_on(async {
-                start(cli).await;
+                if let Err(e) = start(cli).await {
+                    eprintln!("{}", e);
+                }
             });
     } else {
         install_drivers();
@@ -80,7 +84,11 @@ fn main() {
                 .build()
                 .unwrap()
                 .block_on(async {
-                    start(cli).await;
+                    // We're going to deliberately ignore errors that occur
+                    // because we really need to make sure the background drivers close.
+                    if let Err(e) = start(cli).await {
+                        eprintln!("{}", e);
+                    }
                 });
         });
     }
@@ -98,17 +106,14 @@ async fn start(
         byod: _,
         override_port,
     }: Cli,
-) {
+) -> Result<()> {
     // Resolve browser to a supported browser
     let browser = match browser.as_str() {
         "chrome" => SupportedBrowser::Chrome,
         "firefox" => SupportedBrowser::FireFox,
         _ => {
-            eprintln!(
-                "Unsupported browser: {}, currently SchnauzerUI supports 'firefox' and 'chrome'",
-                browser
-            );
-            return;
+            bail!("Unsupported browser: {}, currently SchnauzerUI supports 'firefox' and 'chrome'",
+            browser)
         }
     };
 
@@ -120,19 +125,17 @@ async fn start(
     // Verify that the passed --output-dir could be a directory (a '.' would indicate a file instead)
     if let Some(ref mut output) = output_dir {
         if looks_like_file(output) {
-            eprintln!(
-                "Usage: output_dir flag must be a directory, but received {}",
-                output.display()
-            );
-            return;
+            bail!("Usage: output_dir flag must be a directory, but received {}",
+            output.display());
         }
         // If it can be a directory, create it along with any required parent folders.
-        std::fs::create_dir_all(output.clone())
-            .expect(&format!("Could not create directory: {}", output.display()));
+        if std::fs::create_dir_all(output.clone()).is_err() {
+            bail!("Could not create directory: {}", output.display());
+        }
     }
 
     // If a path to a datatable was provided, read in the datatable as a csv.
-    let dt = datatable.map(|path| read_csv(path));
+    let dt = datatable.map(|path| read_csv(path)).transpose()?;
 
     // Combine webdriver related arguments into a config object
     let driver_config = WebDriverConfig {
@@ -146,11 +149,8 @@ async fn start(
         // They provided a filepath, so verify it's a file and just run the given file
         (Some(filepath), false) => {
             if !filepath.is_file() {
-                eprintln!(
-                    "Usage: filepath flag must be a file, but received {}",
-                    filepath.display()
-                );
-                return;
+                bail!("Usage: filepath flag must be a file, but received {}",
+                filepath.display());
             }
 
             // the output directory should default to the directory of the input file
@@ -164,7 +164,9 @@ async fn start(
         // The output directory should default to the current directory.
         (None, true) => {
             if let Err(e) = repl_loop(output_dir.unwrap_or(".".into()), driver_config, demo).await {
-                eprintln!("REPL encountered an error: {}", e);
+                bail!("REPL encountered an error: {}", e);
+            } else {
+                Ok(())
             }
         }
 
@@ -180,50 +182,52 @@ async fn run_file(
     driver_config: WebDriverConfig,
     dt: Option<Vec<HashMap<String, String>>>,
     is_demo: bool,
-) {
+) -> Result<()> {
     // Read in the file
-    let code = std::fs::read_to_string(input_filepath.clone()).expect(&format!(
+    let code = std::fs::read_to_string(input_filepath.clone()).with_context(|| format!(
         "Errored reading file {}",
         input_filepath.display()
-    ));
+    ))?;
 
-    let file_name = get_filename_as_string(&input_filepath);
+    let file_name = get_filename_as_string(&input_filepath)?;
 
     // Create a driver
     let driver = new_driver(driver_config)
         .await
-        .expect("Could not launch driver");
+        .with_context(|| "Could not launch driver")?;
 
     // Run the code
     run(code, output_filepath, file_name, driver, dt, is_demo)
         .await
-        .expect("Oh no!");
+        .with_context(|| "Oh no!")?;
+
+    Ok(())
 }
 
 async fn repl_loop(
     output_filepath: PathBuf,
     driver_config: WebDriverConfig,
     is_demo: bool,
-) -> Result<(), &'static str> {
+) -> Result<()> {
     let driver = new_driver(driver_config)
         .await
-        .map_err(|_| "Error starting interpreter and/or browser")?;
+        .with_context(|| "Error starting interpreter and/or browser")?;
     let mut interpreter = Interpreter::new(driver, vec![], is_demo, None);
 
     let mut script_buffer = String::new();
 
     let script_name: String = prompt_default("What is the name of this test?", "test".to_owned())
-        .map_err(|_| "Error reading script name")?;
+        .with_context(|| "Error reading script name")?;
 
     let use_start_script: bool = prompt("Do you want to start from an existing script".to_owned())
-        .map_err(|_| "Error prompting start script")?;
+        .with_context(|| "Error prompting start script")?;
     let start_script: Option<PathBuf> = use_start_script.then(|| {
-        prompt("Please provide the path to the script".to_owned()).expect("Error reading in file")
-    });
+        prompt("Please provide the path to the script".to_owned()).with_context(||"Error reading in file")
+    }).transpose()?;
 
     if let Some(start_path) = start_script {
         let code =
-            std::fs::read_to_string(start_path).map_err(|_| "Error reading in start file code")?;
+            std::fs::read_to_string(start_path).with_context(|| "Error reading in start file code")?;
 
         // Scan and parse the code
         let mut scanner = Scanner::from_src(code);
@@ -250,7 +254,7 @@ async fn repl_loop(
 
     loop {
         // Prompt for a schnauzer_ui statement
-        let code: String = prompt("Enter a command").map_err(|_| "Error reading in line")?;
+        let code: String = prompt("Enter a command").with_context(|| "Error reading in line")?;
 
         // Check if the user wants to exit
         if code == "exit" {
@@ -258,7 +262,7 @@ async fn repl_loop(
                 .driver
                 .close_window()
                 .await
-                .map_err(|_| "Error closing browser window")?;
+                .with_context(|| "Error closing browser window")?;
             break;
         }
 
@@ -272,7 +276,7 @@ async fn repl_loop(
                 Ok(_) => {
                     // Prompt the user if they want to save the statement
                     let save_stmt: bool = prompt_default("Save this statement?", true)
-                        .map_err(|_| "Error reading in line")?;
+                        .with_context(|| "Error reading in line")?;
                     if save_stmt {
                         script_buffer.push_str(&format!("{}", stmt));
                         script_buffer.push('\n');
@@ -287,7 +291,7 @@ async fn repl_loop(
                 Err(e) => {
                     eprintln!("The statement {} resulted in an error: {}", stmt, e.0);
                     let save_stmt: bool = prompt_default("Save this statement anyway?", false)
-                        .map_err(|_| "Error reading in line")?;
+                        .with_context(|| "Error reading in line")?;
                     if save_stmt {
                         script_buffer.push_str(&format!("{}", stmt));
                         script_buffer.push('\n');
@@ -305,7 +309,7 @@ async fn repl_loop(
 
     // Prompt the user if the want to save the script
     let save_script: bool = prompt_default("Save this test run as a SchnauzerUI script?", true)
-        .map_err(|_| "Error saving the test run as a SchnauzerUI script.")?;
+        .with_context(|| "Error saving the test run as a SchnauzerUI script.")?;
 
     // If they want to save the script, write the script buffer to the output path.
     if save_script {
@@ -315,7 +319,7 @@ async fn repl_loop(
                 .with_extension("sui"),
             script_buffer,
         )
-        .expect("Error writing script to output file");
+        .with_context(||"Error writing script to output file")?;
     }
 
     Ok(())
@@ -323,11 +327,11 @@ async fn repl_loop(
 
 // Helpers ---------------------
 
-fn get_filename_as_string(path: &PathBuf) -> String {
-    path.file_stem()
-        .expect("Could not get file name")
-        .to_string_lossy()
-        .to_string()
+fn get_filename_as_string(path: &PathBuf) -> Result<String> {
+    Ok(path.file_stem()
+    .with_context(||"Could not get file name")?
+    .to_string_lossy()
+    .to_string())
 }
 
 fn looks_like_file(path: &PathBuf) -> bool {

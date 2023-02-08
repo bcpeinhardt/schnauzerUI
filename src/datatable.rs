@@ -1,27 +1,31 @@
 use std::{collections::HashMap, path::PathBuf};
+use anyhow::{Result, bail, Context};
 
-pub fn read_csv(path: PathBuf) -> Vec<HashMap<String, String>> {
-    let mut rdr = csv::Reader::from_path(path).expect("Could not read csv file");
+pub fn read_csv(path: PathBuf) -> Result<Vec<HashMap<String, String>>>{
+    let mut rdr = csv::Reader::from_path(path).with_context(|| "Could not find the specified datatable")?;
     let headers = rdr
-        .headers()
-        .expect("Could not read headers from csv file")
+        .headers()?
         .iter()
         .map(|s| s.trim().to_owned())
         .collect::<Vec<_>>();
     let mut variable_runs = vec![];
     for (i, record) in rdr.records().enumerate() {
         let mut hm: HashMap<String, String> = HashMap::new();
-        let mut record = record.expect(&format!("Could not parse record {}", i));
+        let mut record = record?;
         record.trim(); // This is more useful than allowing leading and trailing whitespace
         for (j, item) in record.iter().enumerate() {
+            let header = match headers.get(j) {
+                Some(h) => h,
+                _ => bail!("This won't happen")
+            };
             hm.insert(
-                headers.get(j).expect(&format!("Missing header")).to_owned(),
+                header.to_owned(),
                 item.to_owned(),
             );
         }
         variable_runs.push(hm);
     }
-    variable_runs
+    Ok(variable_runs)
 }
 
 pub fn preprocess(code: String, dt: Vec<HashMap<String, String>>) -> String {

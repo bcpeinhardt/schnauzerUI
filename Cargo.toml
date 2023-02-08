@@ -29,3 +29,4 @@ build_html = "2.2.0"
 serde_json = "1.0.91"
 sailfish = "0.5.0"
 uuid = { version = "1.2.2", features = ["v4"] }
+anyhow = "1.0.69"
