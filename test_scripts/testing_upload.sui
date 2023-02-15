@@ -1,3 +1,0 @@
-url "https://imageresizer.com/"
-locate "//*[@id='file-input']" and upload "./test_scripts/main_report/screenshots/main_screenshot_2.png"
-chill "5"

@@ -9,7 +9,7 @@ pub fn read_csv(path: PathBuf) -> Result<Vec<HashMap<String, String>>>{
         .map(|s| s.trim().to_owned())
         .collect::<Vec<_>>();
     let mut variable_runs = vec![];
-    for (i, record) in rdr.records().enumerate() {
+    for record in rdr.records() {
         let mut hm: HashMap<String, String> = HashMap::new();
         let mut record = record?;
         record.trim(); // This is more useful than allowing leading and trailing whitespace
