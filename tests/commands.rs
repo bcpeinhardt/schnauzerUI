@@ -71,3 +71,41 @@ async fn try_again() {
         };changeTxt();\">Click Me</button>"
     ).await;
 }
+
+#[tokio::test]
+#[serial]
+async fn accept_alert() { 
+    // Clicks a button causing it's text to change, then refreshes the page
+    // and verifies the refresh by locating the buttons old text
+    run_script_against(
+        "locate \"Click Me\" and click and accept-alert",
+        "<button id='btn' onclick=\"function doAlert(){
+            alert('I am an alert');
+        };doAlert();\">Click Me</button>"
+    ).await;
+}
+
+#[tokio::test]
+#[serial]
+async fn dismiss_alert() { 
+    // Clicks a button causing it's text to change, then refreshes the page
+    // and verifies the refresh by locating the buttons old text
+    run_script_against(
+        "locate \"Click Me\" and click and dismiss-alert",
+        "<button id='btn' onclick=\"function doAlert(){
+            alert('I am an alert');
+        };doAlert();\">Click Me</button>"
+    ).await;
+}
+
+
+#[tokio::test]
+#[serial]
+async fn upload() { 
+    // Clicks a button causing it's text to change, then refreshes the page
+    // and verifies the refresh by locating the buttons old text
+    run_script_against(
+        "locate \"myfile\" and upload \"./tests/assets/test_file_for_upload.txt\"",
+        "<input type=\"file\" id=\"myfile\" name=\"myfile\">"
+    ).await;
+}

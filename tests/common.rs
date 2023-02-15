@@ -1,7 +1,4 @@
-use schnauzer_ui::{run, run_no_log, new_driver, WebDriverConfig, with_drivers_running};
-use thirtyfour::prelude::WebDriverResult;
-use serial_test::serial;
-
+use schnauzer_ui::{run_no_log, new_driver, WebDriverConfig};
 
 const TEST_FILE_NAME: &'static str = "testing_file.html";
 
