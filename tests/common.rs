@@ -7,7 +7,7 @@ const TEST_FILE_NAME: &'static str = "testing_file.html";
 /// against the file, and return the result 
 /// The script should not include navigating to a url, the test
 /// function will add that to it.
-pub async fn run_script_against(script: &str, target_html: &str) {
+async fn _run_script_against(script: &str, target_html: &str, should_fail: bool) {
     // Write the target html to the test file
     std::fs::write(TEST_FILE_NAME, target_html).expect("Could not write html to file");
 
@@ -23,9 +23,15 @@ pub async fn run_script_against(script: &str, target_html: &str) {
         browser: schnauzer_ui::SupportedBrowser::Chrome,
     }).await.expect("Could not create test driver");
 
-    // Run the full test script, and assert that the run_no_log function returns false,
-    // indicating no early return was necessary because the entire script succeded.
-    assert!(!run_no_log(test_script, driver).await.expect("Error running script"));
+    assert!(run_no_log(test_script, driver).await.expect("Error running script") == should_fail);
 
     std::fs::remove_file(TEST_FILE_NAME).expect("Error deleting test file");
+}
+
+pub async fn run_script_against(script: &str, target_html: &str) {
+    _run_script_against(script, target_html, false).await
+}
+
+pub async fn run_script_against_fails(script: &str, target_html: &str) {
+    _run_script_against(script, target_html, true).await
 }

@@ -1,6 +1,6 @@
 use serial_test::serial;
 mod common;
-use crate::common::run_script_against;
+use crate::common::{run_script_against, run_script_against_fails};
 
 #[tokio::test]
 #[serial]
@@ -8,6 +8,15 @@ async fn type_into_input() {
     run_script_against(
         "locate \"input\" and type \"Some Text\" and chill \"1\"",
         "<input type=\"text\" />"
+    ).await;
+}
+
+#[tokio::test]
+#[serial]
+async fn type_into_input_errors_properly() { 
+    run_script_against_fails(
+        "locate \"not-an-input\" and type \"Some Text\" and chill \"1\"",
+        "<p id='not-an-input'>Cant type in me</p>"
     ).await;
 }
 
@@ -62,7 +71,7 @@ async fn refresh() {
 
 #[tokio::test]
 #[serial]
-#[ignore = "Test which rely on timeouts are ignored because they take so long. Feel free to run manually"]
+// #[ignore = "Test which rely on timeouts are ignored because they take so long. Feel free to run manually"]
 async fn try_again() {
     run_script_against(
         "locate \"Clicked\"\n catch-error: locate \"Click Me\" and click and try-again",
