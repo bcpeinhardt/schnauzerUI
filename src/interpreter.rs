@@ -977,6 +977,18 @@ impl Interpreter {
             {
                 return self.set_curr_elem(found_elem, scroll_into_view).await;
             }
+
+            // Try to find the element by any related contents whatsoever.
+            if let Ok(found_elem) = self
+                .driver
+                .query(By::XPath(&format!("//*[contains(., '{}')]", locator)))
+                .and_displayed()
+                .nowait()
+                .first()
+                .await
+            {
+                return self.set_curr_elem(found_elem, scroll_into_view).await;
+            }
         }
 
         Err(self.error("Could not locate the element"))

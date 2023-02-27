@@ -101,3 +101,13 @@ async fn locate_by_xpath() {
         "<h1 name=\"test-name\">Text</h1>"
     ).await;
 }
+
+#[tokio::test]
+#[serial]
+async fn locate_by_partial_text_adjacent_to_element() { 
+    run_script_against(
+        "locate \"Add Provider Data File\" and click",
+        "<a href=\"#/provider_data_files/create\" ng-click=\"providerDataFileCtrl.showAddProviderDataFileModal()\" class=\"btn btn-primary pull-right\">
+        <i class=\"fa fa-plus btn-icon\"></i> Add Provider Data File</a>"
+    ).await;
+}
