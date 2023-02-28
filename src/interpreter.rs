@@ -979,15 +979,17 @@ impl Interpreter {
             }
 
             // Try to find the element by any related contents whatsoever.
-            if let Ok(found_elem) = self
+            if let Ok(containing_list) = self
                 .driver
                 .query(By::XPath(&format!("//*[contains(., '{}')]", locator)))
                 .and_displayed()
                 .nowait()
-                .first()
+                .all()
                 .await
             {
-                return self.set_curr_elem(found_elem, scroll_into_view).await;
+                if let Some(elm) = containing_list.last() {
+                    return self.set_curr_elem(elm.to_owned(), scroll_into_view).await;
+                }
             }
         }
 
