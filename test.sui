@@ -1,9 +1,0 @@
-url "localhost:8088"
-locate "Email Address" and type "ben.peinhardt@siteimpact.com"
-locate "Password" and type "m4uw2yp6" and press "Enter"
-locate "Select Role" and select "Email Team Manager"
-locate "Login" and click
-locate "Campaign Manager" and click
-locate "EDT Campaign" and click
-locate "Data Testing" and click
-locate "Add Provider Data File" and click and chill "3"
