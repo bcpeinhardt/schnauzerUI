@@ -14,10 +14,3 @@ assets_version = "0.1.1" # DO NOT EDIT: Managed by `mdbook-catppuccin install`
 
 [output.html]
 additional-css = ["./theme/catppuccin.css", "./theme/catppuccin-highlight.css"]
-
-[output.confluence]
-enabled = true # this lets you disable the renderer until you need it
-url = "https://siteimpact.atlassian.net"
-username = "ben.peinhardt@siteimpact.com"
-title_prefix = "schnauzer_ui"
-root_page = 3057975644 # the page id of where to store your book
