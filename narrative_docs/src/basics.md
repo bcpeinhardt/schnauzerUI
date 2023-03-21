@@ -1,3 +1,8 @@
+# Tutorial
+
+This tutorial will serve as an introduction to the basics of using SchnauzerUI to test Web Applications.
+It assumes you have followed the [installation instructions](installation.md).
+
 # Basics of the Language
 
 Let's look at an example:

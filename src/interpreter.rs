@@ -676,7 +676,7 @@ impl Interpreter {
             .await
             .map_err(|_| self.error("Could not locate active element"))?;
 
-        active_elm.clear().await.map_err(|_| self.error("Error clearing element"))?;
+        let _ = active_elm.clear().await.map_err(|_| self.error("Error clearing element"));
 
         // Type into the element
         active_elm

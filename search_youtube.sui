@@ -1,0 +1,10 @@
+# Test for searching for cats on youtube
+
+# Navigate to youtube
+url "https://youtube.com" and screenshot
+
+# Search for cats
+locate "Search" and type "cats" and screenshot and press "Enter" screenshot
+
+# Go back home
+locate "Home" and click and screenshot
