@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use camino::Utf8PathBuf;
 use chrono::Utc;
 use sailfish::TemplateOnce;
@@ -17,6 +17,15 @@ pub struct ExecutedStmt {
     pub screenshots: Vec<Vec<u8>>,
 }
 
+/// A report which gets passed through the Interpreter and is enriched
+/// with information about the test run.
+///
+/// It's worth discussing the weird pattern we have going on here. Rather
+/// than introducing a trait and making the Interpreter generic/passing around
+/// trait objects for this little report, we're using an enum to do a poor
+/// mans stategy pattern/dependency injection.
+/// This makes this relatively short piece of code less than idiomatic, but prevents
+/// adding the complexity of generics to the interpreter, a much larger piece of code.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SuiReport {
     Standard(StandardReport),
@@ -49,6 +58,10 @@ impl SuiReport {
         })
     }
 
+    // Delegation methods.
+    // These do the same thing regardless of the variant. Verbose, I know,
+    // but they keep us from introducing a generic into the Interpreter.
+
     /// Add an executed statement to the report list.
     pub fn add_statement(&mut self, es: ExecutedStmt) {
         match self {
@@ -57,18 +70,7 @@ impl SuiReport {
         }
     }
 
-    /// Write the full test report output to the file system
-    pub fn write_report(&mut self) -> Result<()> {
-        match self {
-            SuiReport::Standard(report) => {
-                report.save_screenhots()?;
-                report.write_json_output()?;
-                report.write_html_output()
-            }
-            SuiReport::NonWriteable(_) => Ok(()),
-        }
-    }
-
+    /// Set whether the script was forced to execute early.
     pub fn set_exited_early(&mut self, exited_early: bool) {
         match self {
             SuiReport::Standard(report) => report.exited_early = exited_early,
@@ -76,6 +78,7 @@ impl SuiReport {
         }
     }
 
+    /// Return whether the script was forced to execute early.
     pub fn exited_early(&self) -> bool {
         match self {
             SuiReport::Standard(report) => report.exited_early,
@@ -106,6 +109,13 @@ pub struct StandardReport {
 }
 
 impl StandardReport {
+    /// Write all the expected ouput of a standard report
+    pub fn write_report(&mut self) -> Result<()> {
+        self.save_screenhots()?;
+        self.write_html_output()?;
+        self.write_json_output()
+    }
+
     /// Save any created screenshots as PNG files.
     fn save_screenhots(&mut self) -> Result<()> {
         self.output_dir.push("screenshots");

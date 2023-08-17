@@ -142,7 +142,12 @@ impl FileRunner {
             self.demo,
             SuiReport::new(self.get_filename_for_report()?, self.output_directory),
         );
-        interpreter.interpret(true).await?.write_report()
+        let SuiReport::Standard(mut report) = interpreter.interpret(true).await? else {
+            // This should never happen, because the report we are passing the interpreter 
+            // above is a standard report.
+            panic!("This is an internal error. Please file an issue");
+        };
+        report.write_report()
     }
 
     fn process_input_file(&self) -> Result<String> {
@@ -229,7 +234,7 @@ impl ReplRunner {
             let stmts = schnauzer_ui::parser::Parser::new().parse(tokens);
             for stmt in stmts.iter() {
                 if let Err(e) = self.interpreter.execute_stmt(stmt.clone()).await {
-                    eprintln!("The statement {} resulted in an error: {}", stmt, e.0);
+                    eprintln!("The statement {} resulted in an error: {}", stmt, e);
                 }
                 if Self::prompt_save_statement()? {
                     self.push_statement_to_script_buffer(stmt);
@@ -279,7 +284,7 @@ impl ReplRunner {
         if let Err(e) = self.interpreter.execute_stmt(stmt).await {
             bail!(
                 "Warning: Error encountered while running start script: {}",
-                e.0
+                e
             );
         }
         Ok(())

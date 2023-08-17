@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::{bail, Context, Result};
 use async_recursion::async_recursion;
 use futures::TryFutureExt;
 use thirtyfour::{components::SelectElement, prelude::*};
@@ -9,17 +10,6 @@ use crate::{
     parser::{Cmd, CmdParam, CmdStmt, IfStmt, SetVariableStmt, Stmt},
     test_report::{ExecutedStmt, SuiReport},
 };
-
-/// Represent the Severity of an error within the interpreter (i.e. how to respond to an error).
-/// On a Recoverable error, the script will go to the next catch-error: stmt.
-/// On an Exit error, the interpret method will early return.
-pub enum Severity {
-    Exit,
-    Recoverable,
-}
-
-/// Type alias for errors in the interpreter.
-pub type RuntimeResult<T, E> = Result<T, (E, Severity)>;
 
 /// The interpreter is responsible for executing Schnauzer UI stmts against a running selenium grid.
 pub struct Interpreter {
@@ -97,7 +87,7 @@ impl Interpreter {
     }
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
-    pub async fn interpret(mut self, close_driver: bool) -> WebDriverResult<SuiReport> {
+    pub async fn interpret(mut self, close_driver: bool) -> Result<SuiReport> {
         self.reset();
 
         while let Some(stmt) = self.stmts.pop() {
@@ -109,21 +99,17 @@ impl Interpreter {
                         screenshots: std::mem::replace(&mut self.screenshot_buffer, vec![]),
                     });
                 }
-                Err((e, sev)) => {
+                Err(e) => {
                     // report the error
                     self.reporter.add_statement(ExecutedStmt {
                         text: stmt.to_string(),
-                        error: Some(e),
+                        error: Some(e.to_string()),
                         screenshots: std::mem::replace(&mut self.screenshot_buffer, vec![]),
                     });
 
-                    match sev {
-                        Severity::Exit => {
-                            break;
-                        }
-                        Severity::Recoverable => {
-                            self.had_error = true;
-                        }
+                    match self.had_error {
+                        true => break,
+                        false => self.had_error = true,
                     }
                 }
             }
@@ -139,23 +125,13 @@ impl Interpreter {
         Ok(self.reporter)
     }
 
-    /// Produces an error with the appropriate severity based on
-    /// whether we are currently trying to execute stmts again.
-    fn error(&self, msg: &str) -> (String, Severity) {
-        if self.tried_again {
-            (msg.to_owned(), Severity::Exit)
-        } else {
-            (msg.to_owned(), Severity::Recoverable)
-        }
-    }
-
     /// Takes a webelement, attempts to scroll the element into view, and then sets
     /// the element as currently in focus. Subsequent commands will be executed against this element.
     async fn set_curr_elem(
         &mut self,
         elem: WebElement,
         scroll_into_view: bool,
-    ) -> RuntimeResult<WebElement, String> {
+    ) -> Result<WebElement> {
         // Scroll the element into view if specified, but don't fail on an error
         // as this can error falsely for thing like chat windows
         if scroll_into_view {
@@ -169,12 +145,10 @@ impl Interpreter {
                     r#"
             arguments[0].style.border = '5px solid purple';
             "#,
-                    vec![elem
-                        .to_json()
-                        .map_err(|_| self.error("Error jsonifying element"))?],
+                    vec![elem.to_json().context("Error jsonifying element")?],
                 )
                 .await
-                .map_err(|_| self.error("Error highlighting element"))?;
+                .context("Error highlighting element")?;
 
             // Remove the border from the previously located element
             if let Some(ref curr_elem) = self.current_element {
@@ -186,9 +160,7 @@ impl Interpreter {
                         r#"
             arguments[0].style.border = 'none';
             "#,
-                        vec![curr_elem
-                            .to_json()
-                            .map_err(|_| self.error("Error jsonifying element"))?],
+                        vec![curr_elem.to_json().context("Error jsonifying element")?],
                     )
                     .await;
             }
@@ -201,12 +173,12 @@ impl Interpreter {
 
     /// Returns a reference to the current element for performing operations on, or an
     /// error if there is no current element.
-    async fn get_curr_elem(&mut self) -> RuntimeResult<&WebElement, String> {
+    async fn get_curr_elem(&mut self) -> Result<&WebElement> {
         if let Some(elem) = self.current_element.as_ref() {
             if !elem
                 .is_present()
                 .await
-                .map_err(|_| self.error("Error checking if element is present"))?
+                .context("Error checking if element is present")?
             {
                 // Element is stale, so replay the last locate command. Helps with pages which are highly dynamic
                 // for a few moments during the loading.
@@ -218,11 +190,11 @@ impl Interpreter {
 
         self.current_element
             .as_ref()
-            .ok_or(self.error("No element currently located. Try using the locate command"))
+            .context("No element currently located. Try using the locate command")
     }
 
     /// Executes a single SchnauzerUI statement.
-    pub async fn execute_stmt(&mut self, stmt: Stmt) -> RuntimeResult<(), String> {
+    pub async fn execute_stmt(&mut self, stmt: Stmt) -> Result<()> {
         // Add the statement to the list of stmts since the last catch-error stmt was encountered.
         // Used by the try-again command to re-execute on an error.
         self.statements_since_last_error_handling.push(stmt.clone());
@@ -264,7 +236,7 @@ impl Interpreter {
                         .driver
                         .active_element()
                         .await
-                        .map_err(|_| self.error("Error getting active element."))?;
+                        .context("Error getting active element.")?;
                     self.under_element = Some(active_elm);
                     self.execute_cmd_stmt(cs).await?;
                     self.under_element = None;
@@ -303,16 +275,16 @@ impl Interpreter {
     }
 
     /// Tries to retrieve the value of a variable.
-    pub fn get_variable(&self, name: &str) -> RuntimeResult<String, String> {
+    pub fn get_variable(&self, name: &str) -> Result<String> {
         self.environment
             .get_variable(name)
-            .ok_or(self.error("Variable is not yet defined"))
+            .context("Variable is not yet defined")
     }
 
     /// Takes a cmd_param and tries to resolve it to a string. If it's a user provided String literal, just
     /// returns the value of the string. If it's a variable name, tries to retrieve the variable
     /// from the interpreters environment.
-    pub fn resolve(&self, cmd_param: CmdParam) -> RuntimeResult<String, String> {
+    pub fn resolve(&self, cmd_param: CmdParam) -> Result<String> {
         match cmd_param {
             CmdParam::String(s) => Ok(s),
             CmdParam::Variable(v) => self.get_variable(&v),
@@ -327,7 +299,7 @@ impl Interpreter {
             condition,
             then_branch,
         }: IfStmt,
-    ) -> RuntimeResult<(), String> {
+    ) -> Result<()> {
         if self.execute_cmd(condition).await.is_ok() {
             self.execute_cmd_stmt(then_branch).await
         } else {
@@ -338,7 +310,7 @@ impl Interpreter {
     /// Execute each cmd until there are no more combining `and` tokens.
     /// Fail early if one command fails.
     #[async_recursion]
-    pub async fn execute_cmd_stmt(&mut self, cs: CmdStmt) -> RuntimeResult<(), String> {
+    pub async fn execute_cmd_stmt(&mut self, cs: CmdStmt) -> Result<()> {
         self.execute_cmd(cs.lhs).await?;
         if let Some((_, rhs)) = cs.rhs {
             self.execute_cmd_stmt(*rhs).await
@@ -347,7 +319,7 @@ impl Interpreter {
         }
     }
 
-    pub async fn execute_cmd(&mut self, cmd: Cmd) -> RuntimeResult<(), String> {
+    pub async fn execute_cmd(&mut self, cmd: Cmd) -> Result<()> {
         // Adding a default wait of 1 second between commands because it just mimics human timing a lot
         // better. Will add a flag to turn this off.
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -370,18 +342,16 @@ impl Interpreter {
             Cmd::Select(cp) => self.select(cp).await,
             Cmd::DragTo(cp) => self.drag_to(cp).await,
             Cmd::Upload(cp) => self.upload(cp).await,
-            Cmd::AcceptAlert => {
-                self.driver
-                    .accept_alert()
-                    .map_err(|_| self.error("Error accepting alert"))
-                    .await
-            }
-            Cmd::DismissAlert => {
-                self.driver
-                    .dismiss_alert()
-                    .map_err(|_| self.error("Error dismissing alert"))
-                    .await
-            }
+            Cmd::AcceptAlert => self
+                .driver
+                .accept_alert()
+                .await
+                .context("Error accepting alert"),
+            Cmd::DismissAlert => self
+                .driver
+                .dismiss_alert()
+                .await
+                .context("Error dismissing alert"),
         }
     }
 
@@ -392,7 +362,7 @@ impl Interpreter {
     // A label/input pair with the matching for/id attributes respectively,
     // or a label/input pair where the label element contains the input element or directly precedes it,
     // will be swapped.
-    async fn resolve_label(&mut self) -> RuntimeResult<(), String> {
+    async fn resolve_label(&mut self) -> Result<()> {
         // Label with correct for attribute
         if self
             .get_curr_elem()
@@ -424,7 +394,7 @@ impl Interpreter {
                 .await?
                 .attr("for")
                 .await
-                .map_err(|_| self.error("Unknown error"))?;
+                .context("Unknown error")?;
 
             // Try to find the input element with the corresponding id or name attribute
             if let Some(for_attr) = for_attr {
@@ -499,7 +469,7 @@ impl Interpreter {
         Ok(())
     }
 
-    pub async fn upload(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn upload(&mut self, cp: CmdParam) -> Result<()> {
         // Uploading to a file input is the same as typing keys into it,
         // but our users shouldn't have to know that.
 
@@ -507,28 +477,28 @@ impl Interpreter {
         let path = PathBuf::from(path_str);
         let abs_path = path
             .canonicalize()
-            .map_err(|_| self.error("Error resolving path to file"))?;
+            .context("Error resolving path to file")?;
         let abs_path_str = abs_path
             .to_str()
-            .ok_or(self.error("Error converting absolute path to string"))?;
+            .context("Error converting absolute path to string")?;
 
         self.get_curr_elem()
             .await?
             .send_keys(abs_path_str)
             .await
-            .map_err(|_| self.error("Error uploading file"))
+            .context("Error uploading file")
     }
 
-    pub async fn drag_to(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn drag_to(&mut self, cp: CmdParam) -> Result<()> {
         let current = self.get_curr_elem().await?.clone();
         self.locate(cp, false).await?;
         current
             .js_drag_to(self.get_curr_elem().await?)
             .await
-            .map_err(|_| self.error("Error dragging element."))
+            .context("Error dragging element.")
     }
 
-    pub async fn select(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn select(&mut self, cp: CmdParam) -> Result<()> {
         let option_text = self.resolve(cp)?;
 
         self.resolve_label().await?;
@@ -553,30 +523,26 @@ impl Interpreter {
                 .query(By::XPath("./.."))
                 .first()
                 .await
-                .map_err(|_| {
-                    self.error(
-                        "Error getting parent select. Try locating the select element directly",
-                    )
-                })?;
+                .context("Error getting parent select. Try locating the select element directly")?;
             self.set_curr_elem(parent_select, false).await?;
         }
 
         // Try to create a select element from the current located element
         let select_elm = SelectElement::new(self.get_curr_elem().await?)
             .await
-            .map_err(|_| self.error("Element is not a <select> element"))?;
+            .context("Element is not a <select> element")?;
 
         // Try to select the element by text
         select_elm
             .select_by_visible_text(&option_text)
             .await
-            .map_err(|_| self.error(&format!("Could not select text {}", option_text)))
+            .context(format!("Could not select text {}", option_text))
     }
 
-    pub async fn chill(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn chill(&mut self, cp: CmdParam) -> Result<()> {
         let time_to_wait = match self.resolve(cp)?.parse::<u64>() {
             Ok(time) => time,
-            _ => return Err(self.error("Could not parse time to wait as integer.")),
+            _ => bail!("Could not parse time to wait as integer."),
         };
 
         tokio::time::sleep(tokio::time::Duration::from_secs(time_to_wait)).await;
@@ -584,28 +550,26 @@ impl Interpreter {
         Ok(())
     }
 
-    pub async fn press(&mut self, cp: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn press(&mut self, cp: CmdParam) -> Result<()> {
         let key_to_press = match self.resolve(cp)?.as_ref() {
             "Enter" => Key::Enter,
-            _ => return Err(self.error("Unsupported Key")),
+            _ => bail!("Unsupported Key"),
         };
         self.get_curr_elem()
             .await?
             .send_keys("" + &key_to_press)
             .await
-            .map_err(|_| {
-                self.error("Error pressing key. Make sure you have an element in focus first.")
-            })
+            .context("Error pressing key. Make sure you have an element in focus first.")
     }
 
     /// Reads the text of the currently located element to a variable.
-    pub async fn read_to(&mut self, name: String) -> RuntimeResult<(), String> {
+    pub async fn read_to(&mut self, name: String) -> Result<()> {
         let txt = self
             .get_curr_elem()
             .await?
             .text()
             .await
-            .map_err(|_| self.error("Error getting text from element"))?;
+            .context("Error getting text from element")?;
         self.environment.set_variable(name, txt);
         Ok(())
     }
@@ -622,26 +586,23 @@ impl Interpreter {
     }
 
     /// Takes a screenshot of the page.
-    pub async fn screenshot(&mut self) -> RuntimeResult<(), String> {
+    pub async fn screenshot(&mut self) -> Result<()> {
         let ss = self
             .driver
             .screenshot_as_png()
             .await
-            .map_err(|_| self.error("Error taking screenshot."))?;
+            .context("Error taking screenshot.")?;
         self.screenshot_buffer.push(ss);
         Ok(())
     }
 
     /// Refreshes the webpage
-    pub async fn refresh(&mut self) -> RuntimeResult<(), String> {
-        self.driver
-            .refresh()
-            .await
-            .map_err(|_| self.error("Error refreshing page"))
+    pub async fn refresh(&mut self) -> Result<()> {
+        self.driver.refresh().await.context("Error refreshing page")
     }
 
     /// Tries to click on the currently located web element.
-    pub async fn click(&mut self) -> RuntimeResult<(), String> {
+    pub async fn click(&mut self) -> Result<()> {
         self.resolve_label().await?;
 
         // We need to wait for the element to be clickable by default,
@@ -656,11 +617,11 @@ impl Interpreter {
             .click()
             .perform()
             .await
-            .map_err(|e| self.error(&format!("Error clicking element: {}", e)))
+            .context("Error clicking element")
     }
 
     /// Tries to type into the current element
-    pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn type_into_elem(&mut self, cmd_param: CmdParam) -> Result<()> {
         let txt = self.resolve(cmd_param)?;
 
         self.resolve_label().await?;
@@ -682,27 +643,24 @@ impl Interpreter {
             .driver
             .active_element()
             .await
-            .map_err(|_| self.error("Could not locate active element"))?;
+            .context("Could not locate active element")?;
 
-        let _ = active_elm
-            .clear()
-            .await
-            .map_err(|_| self.error("Error clearing element"));
+        let _ = active_elm.clear().await.context("Error clearing element");
 
         // Type into the element
         active_elm
             .send_keys(txt)
             .await
-            .map_err(|_| self.error("Error typing into element"))
+            .context("Error typing into element")
     }
 
     /// Navigates to the provided url.
-    pub async fn url_cmd(&mut self, url: CmdParam) -> RuntimeResult<(), String> {
+    pub async fn url_cmd(&mut self, url: CmdParam) -> Result<()> {
         let url = self.resolve(url)?;
         self.driver
             .goto(url)
             .await
-            .map_err(|_| self.error("Error navigating to page."))
+            .context("Error navigating to page.")
     }
 
     /// Attempt to locate an element on the page, testing the locator in the following precedence
@@ -712,7 +670,7 @@ impl Interpreter {
         &mut self,
         locator: CmdParam,
         scroll_into_view: bool,
-    ) -> RuntimeResult<WebElement, String> {
+    ) -> Result<WebElement> {
         let locator = self.resolve(locator)?;
 
         // Store the locator in case we need to re-execute locate command (stale element, etc.)
@@ -1004,6 +962,6 @@ impl Interpreter {
             }
         }
 
-        Err(self.error("Could not locate the element"))
+        bail!("Could not locate the element")
     }
 }
