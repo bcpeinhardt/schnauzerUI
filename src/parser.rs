@@ -1,5 +1,6 @@
 use crate::scanner::{Token, TokenType};
 
+/// Represents the different kinds of statements in SchnauzerUI
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Cmd(CmdStmt),
@@ -69,13 +70,17 @@ impl std::fmt::Display for CmdStmt {
     }
 }
 
-/// TODO: Add new tab cmd.
+/// Represents the different commands in SchnauzerUI
 #[derive(Debug, Clone, PartialEq)]
 pub enum Cmd {
     /// Command for resolving a locator to a web element.
-    /// The associated string is the provided locator argument.
+    /// Also scrolls the element into view.
+    /// The associated string is the locator.
     Locate(CmdParam),
 
+    /// Command for resolving a locator to a web element.
+    /// Does not scroll the element into view.
+    /// The associated string is the locator.
     LocateNoScroll(CmdParam),
 
     /// Command for typing text into some web element.
@@ -94,11 +99,11 @@ pub enum Cmd {
     /// Command for taking a screenshot
     Screenshot,
 
-    /// Command for reading the text of a webelemnt to a variable
-    /// Associated string is the variable name
+    /// Command for reading the text of a webelement to a variable.
+    /// Associated string is the variable name.
     ReadTo(String),
 
-    /// Navigate the driver to the provided URL
+    /// Navigate the driver to the provided URL.
     Url(CmdParam),
 
     /// Parses the cmd param as a key to press.
@@ -108,13 +113,22 @@ pub enum Cmd {
     /// Pauses test execution for the provided number of seconds
     Chill(CmdParam),
 
+    /// Command for selecting an option on a select element.
+    /// The associated String is the option text.
     Select(CmdParam),
 
+    /// Command for simulating drag and drop behavior with JavaScript.
+    /// The associated String is the locator for the target element.
     DragTo(CmdParam),
 
+    /// Command for uploading a file. Associated text is the path
+    /// to the file to upload.
     Upload(CmdParam),
 
+    /// Command for accepting a browser alert window.
     AcceptAlert,
+
+    /// Command for dismissing a browser alert window.
     DismissAlert,
 }
 

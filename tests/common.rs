@@ -6,7 +6,7 @@ use schnauzer_ui::{
     test_report::SuiReport,
     webdriver::{new_driver, WebDriverConfig},
 };
-use thirtyfour::{prelude::WebDriverResult, WebDriver};
+use thirtyfour::WebDriver;
 
 const TEST_FILE_NAME: &'static str = "testing_file.html";
 

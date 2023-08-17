@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use async_recursion::async_recursion;
-use futures::TryFutureExt;
 use thirtyfour::{components::SelectElement, prelude::*};
 
 use crate::{
@@ -946,7 +945,7 @@ impl Interpreter {
                 .query(By::XPath(&format!("//*[contains(., '{}')]", locator)))
                 .and_displayed()
                 .nowait()
-                .all()
+                .all_from_selector()
                 .await
             {
                 if let Some(elm) = containing_list.last() {
