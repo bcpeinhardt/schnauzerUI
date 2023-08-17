@@ -12,7 +12,7 @@ pub enum Stmt {
 
     /// This statement is not meant to be parsed. It is added by the interpreter
     /// as part of try-again logic.
-    SetTryAgainFieldToFalse,
+    SetHadErrorFieldToFalse,
 }
 
 impl std::fmt::Display for Stmt {
@@ -23,7 +23,7 @@ impl std::fmt::Display for Stmt {
             Stmt::SetVariable(sv) => write!(f, "{}", sv),
             Stmt::Comment(s) => write!(f, "{}", s),
             Stmt::CatchErr(cs) => write!(f, "catch-error: {}", cs),
-            Stmt::SetTryAgainFieldToFalse => write!(f, ""),
+            Stmt::SetHadErrorFieldToFalse => write!(f, ""),
             Stmt::Under(cp, cs) => write!(f, "under {} {}", cp, cs),
             Stmt::UnderActiveElement(cs) => write!(f, "under-active-element {}", cs),
         }

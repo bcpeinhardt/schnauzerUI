@@ -37,10 +37,6 @@ pub struct Interpreter {
     /// the try-again command to be able to re-execute them.
     statements_since_last_error_handling: Vec<Stmt>,
 
-    /// The tried again field stores whether or not we are in try-again mode. It is used to cause an early return
-    /// in the case that we encounter an error while in try-again mode.
-    tried_again: bool,
-
     /// The progress of the program is stored into a buffer to optionally be written to a file
     pub reporter: SuiReport,
 
@@ -71,7 +67,6 @@ impl Interpreter {
             current_element: None,
             had_error: false,
             statements_since_last_error_handling: vec![],
-            tried_again: false,
             screenshot_buffer: vec![],
             last_used_locator: None,
             under_element: None,
@@ -83,7 +78,6 @@ impl Interpreter {
         self.current_element = None;
         self.had_error = false;
         self.statements_since_last_error_handling.clear();
-        self.tried_again = false;
     }
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
@@ -218,11 +212,11 @@ impl Interpreter {
                     self.statements_since_last_error_handling.clear();
                     Ok(())
                 }
-                Stmt::SetTryAgainFieldToFalse => {
+                Stmt::SetHadErrorFieldToFalse => {
                     // This command was inserted by the interpreter as part of executing try-again.
                     // Reaching this command means the second attempt passed without erroring,
                     // so we go back to normal execution mode.
-                    self.tried_again = false;
+                    self.had_error = false;
                     Ok(())
                 }
                 Stmt::Under(cp, cs) => {
@@ -576,8 +570,7 @@ impl Interpreter {
 
     /// Re-executes the commands since the last catch-error stmt.
     pub fn try_again(&mut self) {
-        self.tried_again = true;
-        self.stmts.push(Stmt::SetTryAgainFieldToFalse);
+        self.stmts.push(Stmt::SetHadErrorFieldToFalse);
 
         // This would be more efficient with some kind of mem_swap type function.
         self.stmts

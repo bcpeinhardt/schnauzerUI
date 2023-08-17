@@ -86,6 +86,14 @@ async fn try_again() {
         };changeTxt();\">Click Me</button>",
     )
     .await;
+
+    run_script_against_fails(
+        "locate \"Clicked\"\n catch-error: locate \"Click Me\" and click and try-again",
+        "<button id='btn' onclick=\"function changeTxt(){
+            document.querySelector('#btn').textContent = 'Wrong Content'
+        };changeTxt();\">Click Me</button>",
+    )
+    .await;
 }
 
 #[tokio::test]
