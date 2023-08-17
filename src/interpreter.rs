@@ -7,7 +7,7 @@ use thirtyfour::{components::SelectElement, prelude::*};
 use crate::{
     environment::Environment,
     parser::{Cmd, CmdParam, CmdStmt, IfStmt, SetVariableStmt, Stmt},
-    test_report::{ExecutedStmt, Report},
+    test_report::{ExecutedStmt, SuiReport},
 };
 
 /// Represent the Severity of an error within the interpreter (i.e. how to respond to an error).
@@ -32,28 +32,30 @@ pub struct Interpreter {
     /// Each interpreter gets an environment for storing variables
     environment: Environment,
 
-    /// The locate command brings an element into focus. That element is stored here. Subsequents commands are performed
+    /// The locate command brings an element into focus. That element is stored here. Subsequent commands are performed
     /// against this element.
-    curr_elem: Option<WebElement>,
+    current_element: Option<WebElement>,
 
     /// The last locator used to locate an element. Stored
     /// to re-execute locate command when necessary (like for a stale element)
-    locator: Option<String>,
+    last_used_locator: Option<String>,
 
     /// The had error field tracks whether or not the script encountered an error, and is used to move between catch-error: statements.
     had_error: bool,
 
     /// We store the statements that we encounter since the last catch-error stmt in order for
     /// the try-again command to be able to re-execute them.
-    stmts_since_last_error_handling: Vec<Stmt>,
+    statements_since_last_error_handling: Vec<Stmt>,
 
     /// The tried again field stores whether or not we are in try-again mode. It is used to cause an early return
     /// in the case that we encounter an error while in try-again mode.
     tried_again: bool,
 
     /// The progress of the program is stored into a buffer to optionally be written to a file
-    pub reporter: Option<Report>,
-    pub screenshot_buf: Vec<Vec<u8>>,
+    pub reporter: SuiReport,
+
+    /// A buffer for storing png bytes of screenshots taken during testing
+    screenshot_buffer: Vec<Vec<u8>>,
 
     /// Denotes whether the program is in "demo" mode
     is_demo: bool,
@@ -64,58 +66,56 @@ pub struct Interpreter {
 
 impl Interpreter {
     /// Constructor for the Interpreter. Registers a webdriver against a standalone selenium grid running at port 4444.
-    pub fn new(
-        driver: WebDriver,
-        stmts: Vec<Stmt>,
-        is_demo: bool,
-        reporter: Option<Report>,
-    ) -> Self {
+    pub fn new(driver: WebDriver, stmts: Vec<Stmt>, is_demo: bool, reporter: SuiReport) -> Self {
         let stmts = stmts.into_iter().rev().collect();
 
         Self {
+            // Provided fields
             driver,
             stmts,
-            environment: Environment::new(),
-            curr_elem: None,
-            had_error: false,
-            stmts_since_last_error_handling: vec![],
-            tried_again: false,
-            reporter,
-            screenshot_buf: vec![],
             is_demo,
-            locator: None,
+            reporter,
+
+            // Initializers
+            environment: Environment::new(),
+            current_element: None,
+            had_error: false,
+            statements_since_last_error_handling: vec![],
+            tried_again: false,
+            screenshot_buffer: vec![],
+            last_used_locator: None,
             under_element: None,
         }
     }
 
-    /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
-    pub async fn interpret(&mut self, close_driver: bool) -> WebDriverResult<bool> {
-        // Reset in case the interpreter is being reused
-        self.curr_elem = None;
+    /// "Reset" the interpreter to reuse it.
+    fn reset(&mut self) {
+        self.current_element = None;
         self.had_error = false;
-        self.stmts_since_last_error_handling.clear();
+        self.statements_since_last_error_handling.clear();
         self.tried_again = false;
+    }
+
+    /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
+    pub async fn interpret(mut self, close_driver: bool) -> WebDriverResult<SuiReport> {
+        self.reset();
 
         while let Some(stmt) = self.stmts.pop() {
             match self.execute_stmt(stmt.clone()).await {
                 Ok(()) => {
-                    if let Some(ref mut reporter) = self.reporter {
-                        reporter.add_stmt(ExecutedStmt {
-                            text: stmt.to_string(),
-                            error: None,
-                            screenshots: std::mem::replace(&mut self.screenshot_buf, vec![]),
-                        });
-                    }
+                    self.reporter.add_statement(ExecutedStmt {
+                        text: stmt.to_string(),
+                        error: None,
+                        screenshots: std::mem::replace(&mut self.screenshot_buffer, vec![]),
+                    });
                 }
                 Err((e, sev)) => {
-                    if let Some(ref mut reporter) = self.reporter {
-                        // report the error
-                        reporter.add_stmt(ExecutedStmt {
-                            text: stmt.to_string(),
-                            error: Some(e),
-                            screenshots: std::mem::replace(&mut self.screenshot_buf, vec![]),
-                        });
-                    }
+                    // report the error
+                    self.reporter.add_statement(ExecutedStmt {
+                        text: stmt.to_string(),
+                        error: Some(e),
+                        screenshots: std::mem::replace(&mut self.screenshot_buffer, vec![]),
+                    });
 
                     match sev {
                         Severity::Exit => {
@@ -134,8 +134,9 @@ impl Interpreter {
             self.driver.close_window().await?;
         }
 
-        // Return whether or not we exited the program while inn error mode.
-        Ok(self.had_error)
+        // If had_error is still true when we exit, it means we had to do an early exit
+        self.reporter.set_exited_early(self.had_error);
+        Ok(self.reporter)
     }
 
     /// Produces an error with the appropriate severity based on
@@ -176,7 +177,7 @@ impl Interpreter {
                 .map_err(|_| self.error("Error highlighting element"))?;
 
             // Remove the border from the previously located element
-            if let Some(ref curr_elem) = self.curr_elem {
+            if let Some(ref curr_elem) = self.current_element {
                 // For now we are explicitly ignoring the error, because if the un-highlight fails
                 // it could simply be that the element has become stale.
                 let _ = self
@@ -194,14 +195,14 @@ impl Interpreter {
         }
 
         // Set the current element
-        self.curr_elem = Some(elem.clone());
+        self.current_element = Some(elem.clone());
         Ok(elem)
     }
 
     /// Returns a reference to the current element for performing operations on, or an
     /// error if there is no current element.
     async fn get_curr_elem(&mut self) -> RuntimeResult<&WebElement, String> {
-        if let Some(elem) = self.curr_elem.as_ref() {
+        if let Some(elem) = self.current_element.as_ref() {
             if !elem
                 .is_present()
                 .await
@@ -209,13 +210,13 @@ impl Interpreter {
             {
                 // Element is stale, so replay the last locate command. Helps with pages which are highly dynamic
                 // for a few moments during the loading.
-                if let Some(locator) = self.locator.clone() {
+                if let Some(locator) = self.last_used_locator.clone() {
                     self.locate(CmdParam::String(locator), false).await?;
                 }
             }
         }
 
-        self.curr_elem
+        self.current_element
             .as_ref()
             .ok_or(self.error("No element currently located. Try using the locate command"))
     }
@@ -224,7 +225,7 @@ impl Interpreter {
     pub async fn execute_stmt(&mut self, stmt: Stmt) -> RuntimeResult<(), String> {
         // Add the statement to the list of stmts since the last catch-error stmt was encountered.
         // Used by the try-again command to re-execute on an error.
-        self.stmts_since_last_error_handling.push(stmt.clone());
+        self.statements_since_last_error_handling.push(stmt.clone());
 
         if !self.had_error {
             // Normal Execution
@@ -242,7 +243,7 @@ impl Interpreter {
                 Stmt::CatchErr(_) => {
                     // If we hit a catch-error stmt but no error occured, we dont do anything.
                     // Clear statements since last error so try-again command doesnt re-execute the entire script.
-                    self.stmts_since_last_error_handling.clear();
+                    self.statements_since_last_error_handling.clear();
                     Ok(())
                 }
                 Stmt::SetTryAgainFieldToFalse => {
@@ -283,7 +284,7 @@ impl Interpreter {
                 }
                 stmt => {
                     // Read in the rest of the stmts until catch-error for possible re-execution.
-                    self.stmts_since_last_error_handling.push(stmt);
+                    self.statements_since_last_error_handling.push(stmt);
                     Ok(())
                 }
             }
@@ -466,23 +467,30 @@ impl Interpreter {
             // If none of this works, perform a recursive search for the input element
             // (like the "under" command but specifically for an input)
             // Limit to 5 elements of depth b/c anything further is probably a bug.
-            // To do a full recursive search, users can use 
+            // To do a full recursive search, users can use
             // `under "<label-text>" locate "input" and type "some text"`
             for _ in 0..5 {
                 match self.get_curr_elem().await?.parent().await {
                     Ok(parent) => {
                         self.set_curr_elem(parent, false).await?;
-                        match self.get_curr_elem().await?.query(By::Tag("input"))
-                        .or(By::Tag("textarea"))
-                        .or(By::XPath("select"))
-                        .nowait().first().await.ok() {
+                        match self
+                            .get_curr_elem()
+                            .await?
+                            .query(By::Tag("input"))
+                            .or(By::Tag("textarea"))
+                            .or(By::XPath("select"))
+                            .nowait()
+                            .first()
+                            .await
+                            .ok()
+                        {
                             Some(elm) => {
                                 self.set_curr_elem(elm, false).await?;
                                 return Ok(());
-                            },
+                            }
                             None => continue,
                         }
-                    },
+                    }
                     Err(_) => break, // the resolve failed but we'll keep going
                 }
             }
@@ -609,8 +617,8 @@ impl Interpreter {
 
         // This would be more efficient with some kind of mem_swap type function.
         self.stmts
-            .append(&mut self.stmts_since_last_error_handling.clone());
-        self.stmts_since_last_error_handling.clear();
+            .append(&mut self.statements_since_last_error_handling.clone());
+        self.statements_since_last_error_handling.clear();
     }
 
     /// Takes a screenshot of the page.
@@ -620,7 +628,7 @@ impl Interpreter {
             .screenshot_as_png()
             .await
             .map_err(|_| self.error("Error taking screenshot."))?;
-        self.screenshot_buf.push(ss);
+        self.screenshot_buffer.push(ss);
         Ok(())
     }
 
@@ -676,7 +684,10 @@ impl Interpreter {
             .await
             .map_err(|_| self.error("Could not locate active element"))?;
 
-        let _ = active_elm.clear().await.map_err(|_| self.error("Error clearing element"));
+        let _ = active_elm
+            .clear()
+            .await
+            .map_err(|_| self.error("Error clearing element"));
 
         // Type into the element
         active_elm
@@ -705,7 +716,7 @@ impl Interpreter {
         let locator = self.resolve(locator)?;
 
         // Store the locator in case we need to re-execute locate command (stale element, etc.)
-        self.locator = Some(locator.clone());
+        self.last_used_locator = Some(locator.clone());
 
         // If we're in a state of "under", search from the base element
         if let Some(ref base_elem) = self.under_element {

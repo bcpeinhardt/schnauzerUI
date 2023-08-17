@@ -31,6 +31,7 @@ sailfish = "0.5.0"
 uuid = { version = "1.2.2", features = ["v4"] }
 anyhow = "1.0.69"
 serial_test = "0.10"
+camino = { version = "1.1.6", features = ["serde", "serde1"] }
 
 [dev-dependencies]
 assert_matches = "1.5.0"

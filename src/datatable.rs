@@ -1,8 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
-use anyhow::{Result, bail, Context};
+use anyhow::{bail, Context, Result};
+use std::{collections::HashMap, path::Path};
 
-pub fn read_csv(path: PathBuf) -> Result<Vec<HashMap<String, String>>>{
-    let mut rdr = csv::Reader::from_path(path).with_context(|| "Could not find the specified datatable")?;
+pub fn read_csv(path: impl AsRef<Path>) -> Result<Vec<HashMap<String, String>>> {
+    let mut rdr =
+        csv::Reader::from_path(path).with_context(|| "Could not find the specified datatable")?;
     let headers = rdr
         .headers()?
         .iter()
@@ -16,12 +17,9 @@ pub fn read_csv(path: PathBuf) -> Result<Vec<HashMap<String, String>>>{
         for (j, item) in record.iter().enumerate() {
             let header = match headers.get(j) {
                 Some(h) => h,
-                _ => bail!("This won't happen")
+                _ => bail!("This won't happen"),
             };
-            hm.insert(
-                header.to_owned(),
-                item.to_owned(),
-            );
+            hm.insert(header.to_owned(), item.to_owned());
         }
         variable_runs.push(hm);
     }
