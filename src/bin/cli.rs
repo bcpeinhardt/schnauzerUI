@@ -273,7 +273,7 @@ impl ReplRunner {
     fn write_script_to_file(&self, script_name: String) -> Result<()> {
         std::fs::write(
             self.output_filepath
-                .with_file_name(&script_name)
+                .with_file_name(script_name)
                 .with_extension("sui"),
             self.script_buffer.clone(),
         )
@@ -305,11 +305,11 @@ impl ReplRunner {
 
     fn prompt_for_start_script() -> Result<Option<PathBuf>> {
         let use_start_script: bool =
-            prompt("Do you want to start from an existing script".to_owned())
+            prompt("Do you want to start from an existing script")
                 .with_context(|| "Error prompting start script")?;
 
         if use_start_script {
-            let start_script = prompt("Please provide the path to the script".to_owned())
+            let start_script = prompt("Please provide the path to the script")
                 .with_context(|| "Error reading in file")?;
             Ok(Some(start_script))
         } else {

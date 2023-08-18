@@ -188,6 +188,12 @@ pub struct Parser {
     index: usize,
 }
 
+impl Default for Parser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Parser {
     pub fn new() -> Self {
         Self {
@@ -200,7 +206,7 @@ impl Parser {
     pub fn parse(&mut self, tokens: Vec<Token>) -> Vec<Stmt> {
         // A token list passed to the parse should always end in an Eof token.
         // The unwrap is safe because we checked the len > 0.
-        assert!(tokens.len() > 0 && tokens.last().unwrap().token_type == TokenType::Eof);
+        assert!(!tokens.is_empty() && tokens.last().unwrap().token_type == TokenType::Eof);
 
         for line in tokens.split(|t| t.token_type == TokenType::Eol) {
             self.curr_line = line.to_vec();
@@ -222,7 +228,7 @@ impl Parser {
 
     pub fn parse_stmt(&mut self) -> Result<Stmt, String> {
         if self.advance_on(TokenType::If).is_some() {
-            self.parse_if_stmt().map(|is| Stmt::If(is))
+            self.parse_if_stmt().map(Stmt::If)
         } else if self.advance_on(TokenType::Under).is_some() {
             let cp = self.parse_cmd_param()?;
             let cs = self.parse_cmd_stmt()?;
@@ -267,7 +273,7 @@ impl Parser {
                 _ => Err(self.error("Error")),
             }
         } else {
-            self.parse_cmd_stmt().map(|cs| Stmt::Cmd(cs))
+            self.parse_cmd_stmt().map(Stmt::Cmd)
         }
     }
 
@@ -309,11 +315,11 @@ impl Parser {
 
     pub fn parse_cmd(&mut self) -> Result<Cmd, String> {
         if self.advance_on(TokenType::Locate).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Locate(cp))
+            self.parse_cmd_param().map(Cmd::Locate)
         } else if self.advance_on(TokenType::LocateNoScroll).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::LocateNoScroll(cp))
+            self.parse_cmd_param().map(Cmd::LocateNoScroll)
         } else if self.advance_on(TokenType::Type).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Type(cp))
+            self.parse_cmd_param().map(Cmd::Type)
         } else if self.advance_on(TokenType::ReadTo).is_some() {
             let var = self
                 .advance_on(TokenType::Variable("n/a".to_owned()))
@@ -327,17 +333,17 @@ impl Parser {
                 _ => Err(self.error("Expected Variable")),
             }
         } else if self.advance_on(TokenType::Url).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Url(cp))
+            self.parse_cmd_param().map(Cmd::Url)
         } else if self.advance_on(TokenType::Press).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Press(cp))
+            self.parse_cmd_param().map(Cmd::Press)
         } else if self.advance_on(TokenType::Chill).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Chill(cp))
+            self.parse_cmd_param().map(Cmd::Chill)
         } else if self.advance_on(TokenType::Select).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Select(cp))
+            self.parse_cmd_param().map(Cmd::Select)
         } else if self.advance_on(TokenType::DragTo).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::DragTo(cp))
+            self.parse_cmd_param().map(Cmd::DragTo)
         } else if self.advance_on(TokenType::Upload).is_some() {
-            self.parse_cmd_param().map(|cp| Cmd::Upload(cp))
+            self.parse_cmd_param().map(Cmd::Upload)
         } else {
             let token = self.advance_on_any();
             match token.token_type {
@@ -374,8 +380,7 @@ impl Parser {
     fn advance_on_any(&mut self) -> Token {
         self.index += 1;
         self.curr_line
-            .get(self.index - 1)
-            .map(|t| t.clone())
+            .get(self.index - 1).cloned()
             .unwrap()
     }
 
@@ -386,7 +391,7 @@ impl Parser {
     }
 
     fn current_token(&self) -> Option<Token> {
-        self.curr_line.get(self.index).map(|t| t.clone())
+        self.curr_line.get(self.index).cloned()
     }
 
     /// # Panics

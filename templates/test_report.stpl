@@ -81,11 +81,11 @@
     </header>
     <div class="container">
     <% for stmt in &inner.executed_stmts { %>
-        <% if stmt.text.starts_with("#") { %>
+        <% if stmt.text.starts_with('#') { %>
         <%# Comments %>
             <div class="comment"><%= &stmt.text %></div>
         <% } %>
-        <% if !stmt.text.starts_with("#") && stmt.error.is_none() { %>
+        <% if !stmt.text.starts_with('#') && stmt.error.is_none() { %>
         <%# Successful Statements %>
             <div class="successful-stmt"><%= format!("Statement Succeeded: {}", &stmt.text) %></div>
             <% had_stmt = true; %>

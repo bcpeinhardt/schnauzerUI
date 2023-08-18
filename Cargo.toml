@@ -1,5 +1,5 @@
 [package]
-name = "schnauzerUI"
+name = "schnauzer_ui"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,28 +13,18 @@ path = "src/bin/cli.rs"
 
 [dependencies]
 async-recursion = "1.0.0"
-async_once = "0.2.6"
 chrono = "0.4.22"
 clap = { version = "4.0.8", features = ["derive"] }
-futures = "0.3.24"
 thirtyfour = { git = "https://github.com/stevepryde/thirtyfour", rev = "0fb0239" }
 promptly = "0.3.1"
 tokio = "1.21.2"
-tracing-subscriber = "0.3.16"
 walkdir = "2.3.2"
 csv = "1.1.6"
-webdriver-install = "0.3.2"
 serde = { version = "1.0.152", features = ["serde_derive", "derive"] }
-build_html = "2.2.0"
 serde_json = "1.0.91"
 sailfish = "0.5.0"
-uuid = { version = "1.2.2", features = ["v4"] }
 anyhow = "1.0.69"
-serial_test = "0.10"
 camino = { version = "1.1.6", features = ["serde", "serde1"] }
 
 [dev-dependencies]
-assert_matches = "1.5.0"
-color-eyre = "0.6.2"
-hyper = { version = "0.14", features = ["server", "tcp"] }
 serial_test = "0.10"

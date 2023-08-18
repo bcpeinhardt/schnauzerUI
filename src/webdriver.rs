@@ -1,7 +1,8 @@
+//! This module contains code for working with `thirtyfour::WebDriver`s
+
 use anyhow::{Context, Result};
 use clap::ValueEnum;
 use serde::Deserialize;
-///! This module contains code for working with `thirtyfour::WebDriver`s
 use std::{collections::HashMap, fmt::Display};
 use thirtyfour::{DesiredCapabilities, WebDriver};
 

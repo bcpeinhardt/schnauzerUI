@@ -89,7 +89,7 @@ impl Interpreter {
                     self.reporter.add_statement(ExecutedStmt {
                         text: stmt.to_string(),
                         error: None,
-                        screenshots: std::mem::replace(&mut self.screenshot_buffer, vec![]),
+                        screenshots: std::mem::take(&mut self.screenshot_buffer),
                     });
                 }
                 Err(e) => {
@@ -97,7 +97,7 @@ impl Interpreter {
                     self.reporter.add_statement(ExecutedStmt {
                         text: stmt.to_string(),
                         error: Some(e.to_string()),
-                        screenshots: std::mem::replace(&mut self.screenshot_buffer, vec![]),
+                        screenshots: std::mem::take(&mut self.screenshot_buffer),
                     });
 
                     match self.had_error {
@@ -366,7 +366,7 @@ impl Interpreter {
             == "label"
         {
             // Label contains input or textarea
-            if let Some(input) = self
+            if let Ok(input) = self
                 .get_curr_elem()
                 .await?
                 .query(By::Tag("input"))
@@ -375,7 +375,6 @@ impl Interpreter {
                 .nowait()
                 .first()
                 .await
-                .ok()
             {
                 self.set_curr_elem(input, false).await?;
                 return Ok(());

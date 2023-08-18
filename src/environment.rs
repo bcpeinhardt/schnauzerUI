@@ -18,6 +18,12 @@ impl Environment {
     /// Get the value of a variable if it exists, or None
     /// if it does not.
     pub fn get_variable(&self, name: &str) -> Option<String> {
-        self.0.get(name).map(|s| s.clone())
+        self.0.get(name).cloned()
+    }
+}
+
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
     }
 }

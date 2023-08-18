@@ -156,7 +156,7 @@ impl Scanner {
             }
 
             // Comments
-            if stmt.trim().starts_with("#") {
+            if stmt.trim().starts_with('#') {
                 self.tokens
                     .push(self.token(TokenType::Comment(stmt.to_owned())));
                 self.tokens.push(self.token(TokenType::Eol));
@@ -213,16 +213,16 @@ impl Scanner {
                 Some(self.token(TokenType::UnderActiveElement))
             }
             // If we get an entire string literal, stript the quotes and construct the token
-            word if word.starts_with("\"")
-                && word.ends_with("\"")
+            word if word.starts_with('\"')
+                && word.ends_with('\"')
                 && !self.in_quotes
                 && word.len() > 1 =>
             {
                 // Strip the quotes
                 let word = word
-                    .strip_prefix("\"")
+                    .strip_prefix('\"')
                     .unwrap()
-                    .strip_suffix("\"")
+                    .strip_suffix('\"')
                     .unwrap()
                     .to_owned();
 
@@ -230,12 +230,12 @@ impl Scanner {
             }
 
             // If we get the first part of a string, switch to string literal building mode
-            word if word.starts_with("\"") && !self.in_quotes => {
+            word if word.starts_with('\"') && !self.in_quotes => {
                 self.in_quotes = true;
 
                 // Strip the front quote.
                 // This unwrap is safe because we checked the string began with a quote in the match guard,
-                let without_prefix_quote = word.to_owned().strip_prefix("\"").unwrap().to_owned();
+                let without_prefix_quote = word.to_owned().strip_prefix('\"').unwrap().to_owned();
 
                 // Add the beginning of the literal to the buffer.
                 self.string_literal_buffer.push_str(&without_prefix_quote);
@@ -247,12 +247,12 @@ impl Scanner {
             }
 
             // If we get the last part of the string literal
-            word if word.ends_with("\"") && self.in_quotes => {
+            word if word.ends_with('\"') && self.in_quotes => {
                 self.in_quotes = false;
 
                 // Strip the end quote
                 // This unwrap is safe because we check that word ends in a quote in the match guard.
-                let without_end_quote = word.to_owned().strip_suffix("\"").unwrap().to_owned();
+                let without_end_quote = word.to_owned().strip_suffix('\"').unwrap().to_owned();
 
                 // Add the end of the literal to the string literal buffer.
                 self.string_literal_buffer.push_str(&without_end_quote);
