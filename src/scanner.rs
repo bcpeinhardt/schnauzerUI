@@ -114,6 +114,7 @@ impl Token {
 /// let src = "locate \"username\" and type \"test@test.com\"";
 /// let tokens: Vec<Token> = Scanner::from_src(src.to_owned()).scan();
 /// ```
+#[derive(Debug)]
 pub struct Scanner {
     /// The source code as a String
     src: String,

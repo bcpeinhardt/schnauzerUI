@@ -12,7 +12,7 @@ url "https://youtube.com"
 locate "Search" and type "cats" and press "Enter"
 ```
 
-#### When to use Schnauzer UI vs. other options (Selenium, Cypress, Playwright, etc.)
+##### When to use Schnauzer UI vs. other options (Selenium, Cypress, Playwright, etc.)
 Schnauzer UI is a bad choice if:
 - You want to maintain a large automated test suite with reusable components.
 - You have a team of full time software engineers dedicated to QA.

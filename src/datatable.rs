@@ -1,3 +1,35 @@
+//! This module contains code for working with Schnauzer UI datatables.
+//! 
+//! In Schnauzer UI, a "datatable" is just a csv file with variable values for use in running
+//! a script. The first row of the csv, i.e. the headers, should contain the variables names
+//! you'd like to use in your script.
+//! Each record after that in the csv file represents a test run.
+//! 
+//! For example, the csv file
+//! ```csv
+//! username, password
+//! test@test.com, pa$$word
+//! test2@test,com, 123456
+//! ``` 
+//! 
+//! and the sui file
+//! ```sui
+//! url "https://mywebsite.com"
+//! locate "email" and type "<username>"
+//! locate "password" and type "<password>" 
+//! ```
+//! 
+//! when combined will become the script
+//! ```sui
+//! url "https://mywebsite.com"
+//! locate "email" and type "test@test.com"
+//! locate "password" and type "pa$$word" 
+//! 
+//! url "https://mywebsite.com"
+//! locate "email" and type "test2@test,com"
+//! locate "password" and type "123456" 
+//! ```
+
 use anyhow::{bail, Context, Result};
 use std::{collections::HashMap, path::Path};
 
@@ -21,7 +53,7 @@ pub fn read_csv(path: impl AsRef<Path>) -> Result<Vec<HashMap<String, String>>> 
             let Some(header) = headers.get(j) else {
                 bail!("This record is not the same length as the header row. Are you missing a header for this value?")
             };
-            hm.insert(header.to_owned(), item.to_owned());
+            let _ = hm.insert(header.to_owned(), item.to_owned());
         }
         variable_runs.push(hm);
     }

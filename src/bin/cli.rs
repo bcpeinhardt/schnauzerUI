@@ -304,9 +304,8 @@ impl ReplRunner {
     }
 
     fn prompt_for_start_script() -> Result<Option<PathBuf>> {
-        let use_start_script: bool =
-            prompt("Do you want to start from an existing script")
-                .with_context(|| "Error prompting start script")?;
+        let use_start_script: bool = prompt("Do you want to start from an existing script")
+            .with_context(|| "Error prompting start script")?;
 
         if use_start_script {
             let start_script = prompt("Please provide the path to the script")

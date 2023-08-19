@@ -65,7 +65,7 @@ pub async fn new_driver(
             caps.add_arg("start-maximized")?;
             caps.add_arg("--disable-extensions")?;
             let mut prefs = HashMap::new();
-            prefs.insert("profile.default_content_setting_values.notifications", 1);
+            let _ = prefs.insert("profile.default_content_setting_values.notifications", 1);
             caps.add_experimental_option("prefs", prefs)?;
             WebDriver::new(&localhost, caps)
                 .await

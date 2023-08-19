@@ -130,7 +130,7 @@ impl StandardReport {
                 std::fs::write(op, screenshot).context("Could not write screenshot")?;
             }
         }
-        self.output_dir.pop();
+        let _ = self.output_dir.pop();
         Ok(())
     }
 
@@ -139,7 +139,7 @@ impl StandardReport {
         self.output_dir.push(format!("{}.json", self.name));
         std::fs::write(self.output_dir.clone(), serde_json::to_string(&self)?)
             .context("Could not write log")?;
-        self.output_dir.pop();
+        let _ = self.output_dir.pop();
         Ok(())
     }
 
@@ -155,7 +155,7 @@ impl StandardReport {
             .expect("Could not render template"),
         )
         .expect("Could not create html report");
-        self.output_dir.pop();
+        let _ = self.output_dir.pop();
         Ok(())
     }
 }
@@ -175,7 +175,7 @@ pub struct NonWriteableReport {
     pub exited_early: bool,
 }
 
-#[derive(TemplateOnce)]
+#[derive(Debug, TemplateOnce)]
 #[template(path = "test_report.stpl")]
 pub struct SuiReportTemplate {
     pub inner: StandardReport,
