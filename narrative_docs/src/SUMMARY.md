@@ -1,7 +1,14 @@
 # Summary
 
-- [Introduction](./introduction.md)
-- [Installation](./installation.md)
-- [Tutorial](./basics.md)
-    - [How to use the CLI](./cli.md)
-    - [Statements and Commands List](./statements_and_commands.md)
+[Introduction](./introduction.md)
+
+# Tutorials
+- [Quickstart](./tutorials/quickstart.md)
+
+# How To Guides
+
+# Reference
+
+- [Statements and Commands List](./reference/statements_and_commands.md)
+
+# Explanation

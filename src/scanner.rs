@@ -161,9 +161,8 @@ impl Scanner {
 
             // Comments
             if stmt.trim().starts_with('#') {
-                self.tokens
-                    .push(self.token(TokenType::Comment, stmt.to_owned()));
-                self.tokens.push(self.token(TokenType::Eol, "EOL".into()));
+                self.add_token(TokenType::Comment, stmt.to_owned());
+                self.add_token(TokenType::Eol, "EOL".into());
                 continue;
             }
 
@@ -175,11 +174,11 @@ impl Scanner {
             }
 
             // End of line token
-            self.tokens.push(self.token(TokenType::Eol, "EOL".into()));
+            self.add_token(TokenType::Eol, "EOL".into());
         }
 
         // Add an end of file token
-        self.tokens.push(self.token(TokenType::Eof, "EOF".into()));
+        self.add_token(TokenType::Eof, "EOF".into());
         self.tokens.clone()
     }
 
@@ -187,7 +186,7 @@ impl Scanner {
     /// to a Schnauzer UI token.
     /// String literals are sometimes passed by the scan function in pieces (due to splitting on whitespace),
     /// so the function returns None while it is in the process of rejoining those string literals.
-    pub fn resolve_token(&mut self, lexeme: &str) -> Option<Token> {
+    fn resolve_token(&mut self, lexeme: &str) -> Option<Token> {
         match lexeme {
             // Commands
             "locate" if !self.in_quotes => Some(self.token(TokenType::Locate, "locate".into())),
@@ -289,6 +288,10 @@ impl Scanner {
             }
             word => Some(self.token(TokenType::Variable, word.into())),
         }
+    }
+
+    fn add_token(&mut self, tt: TokenType, lexeme: String) {
+        self.tokens.push(self.token(tt, lexeme));
     }
 
     fn token(&self, tt: TokenType, lexeme: String) -> Token {

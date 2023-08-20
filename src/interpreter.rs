@@ -9,7 +9,7 @@ use thirtyfour::{components::SelectElement, prelude::*};
 use crate::{
     environment::Environment,
     parser::{Cmd, CmdParam, CmdStmt, IfStmt, SetVariableStmt, Stmt},
-    test_report::{ExecutedStmt, SuiReport},
+    test_report::{ExecutedStmt, StandardReport},
 };
 
 /// The interpreter is responsible for executing Schnauzer UI stmts. It translates Schnauzer UI
@@ -40,8 +40,8 @@ pub struct Interpreter {
     /// the try-again command to be able to re-execute them.
     statements_since_last_error_handling: Vec<Stmt>,
 
-    /// The progress of the program is stored into a buffer to optionally be written to a file
-    pub reporter: SuiReport,
+    /// The progress of the program is stored into an object to optionally be written to a file
+    pub report: StandardReport,
 
     /// A buffer for storing png bytes of screenshots taken during testing
     screenshot_buffer: Vec<Vec<u8>>,
@@ -55,7 +55,7 @@ pub struct Interpreter {
 
 impl Interpreter {
     /// Constructor for the Interpreter. Registers a webdriver against a standalone selenium grid running at port 4444.
-    pub fn new(driver: WebDriver, stmts: Vec<Stmt>, is_demo: bool, reporter: SuiReport) -> Self {
+    pub fn new(driver: WebDriver, stmts: Vec<Stmt>, is_demo: bool) -> Self {
         let stmts = stmts.into_iter().rev().collect();
 
         Self {
@@ -63,9 +63,9 @@ impl Interpreter {
             driver,
             stmts,
             is_demo,
-            reporter,
 
             // Initializers
+            report: StandardReport::new(),
             environment: Environment::new(),
             current_element: None,
             had_error: false,
@@ -84,13 +84,13 @@ impl Interpreter {
     }
 
     /// Executes a list of stmts. Returns a boolean indication of whether or not there was an early return.
-    pub async fn interpret(mut self, close_driver: bool) -> Result<SuiReport> {
+    pub async fn interpret(mut self, close_driver: bool) -> Result<StandardReport> {
         self.reset();
 
         while let Some(stmt) = self.stmts.pop() {
             match self.execute_stmt(stmt.clone()).await {
                 Ok(()) => {
-                    self.reporter.add_statement(ExecutedStmt {
+                    self.report.executed_stmts.push(ExecutedStmt {
                         text: stmt.to_string(),
                         error: None,
                         screenshots: std::mem::take(&mut self.screenshot_buffer),
@@ -98,7 +98,7 @@ impl Interpreter {
                 }
                 Err(e) => {
                     // report the error
-                    self.reporter.add_statement(ExecutedStmt {
+                    self.report.executed_stmts.push(ExecutedStmt {
                         text: stmt.to_string(),
                         error: Some(e.to_string()),
                         screenshots: std::mem::take(&mut self.screenshot_buffer),
@@ -118,8 +118,8 @@ impl Interpreter {
         }
 
         // If had_error is still true when we exit, it means we had to do an early exit
-        self.reporter.set_exited_early(self.had_error);
-        Ok(self.reporter)
+        self.report.exited_early = self.had_error;
+        Ok(self.report)
     }
 
     /// Takes a webelement, attempts to scroll the element into view, and then sets

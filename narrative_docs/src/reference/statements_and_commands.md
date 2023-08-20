@@ -4,15 +4,15 @@
 
 ### Comment
 A comment statement is the simplest statement in Schnauzer UI. Create a comment by typing `#` and then the text you'd like.
-It doesn't do anything except help keep scripts organized. Comments are automatically added to the test run log for reference. It's good practice to separate chunks of a Schnauzer UI script with comments to keep it readable.
+Comments are automatically added to the test run log for reference. It's good practice to separate chunks of a Schnauzer UI script with comments to keep it readable.
 
 Ex. Commenting a chunk of code.
 
-`# This part of the script performs x action ...`
+`# This part of the script performs x action`
 
 For programmers: Schnauzer UI doesn't have units of code that can be extracted and reused like "functions".
-This makes good comments really important. You can maintain large SchnauzerUI projects and achieve code reusability
-with things like inlining, but it's a priority that each script be a straightforward linear description
+This makes good comments really important for keeping longer scripts organized and readable. 
+We don't have functions or modules because it's a priority that each script be a straightforward linear description
 of a browser based process, which can be easily passed around via tools like Jira, Teams, Slack, etc.
 
 ### Save As

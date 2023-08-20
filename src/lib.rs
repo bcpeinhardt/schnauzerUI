@@ -28,9 +28,10 @@
 //! To get started, check out the [narrative documentation](https://bcpeinhardt.github.io/schnauzerUI/)
 
 pub mod datatable;
-pub mod environment;
 pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 pub mod test_report;
 pub mod webdriver;
+
+mod environment;

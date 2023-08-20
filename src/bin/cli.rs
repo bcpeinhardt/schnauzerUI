@@ -5,7 +5,6 @@ use schnauzer_ui::{
     interpreter::Interpreter,
     parser::Stmt,
     scanner::Scanner,
-    test_report::SuiReport,
     webdriver::{new_driver, SupportedBrowser, WebDriverConfig},
 };
 
@@ -136,18 +135,12 @@ impl FileRunner {
     pub async fn run(self) -> Result<()> {
         let tokens = Scanner::from_src(self.process_input_file()?).scan();
         let stmts = schnauzer_ui::parser::Parser::new().parse(tokens)?;
-        let interpreter = Interpreter::new(
-            new_driver(self.driver_config).await?,
-            stmts,
-            self.demo,
-            SuiReport::new(self.get_filename_for_report()?, self.output_directory),
-        );
-        let SuiReport::Standard(mut report) = interpreter.interpret(true).await? else {
-            // This should never happen, because the report we are passing the interpreter 
-            // above is a standard report.
-            panic!("This is an internal error. Please file an issue");
-        };
-        report.write_report()
+        let interpreter = Interpreter::new(new_driver(self.driver_config).await?, stmts, self.demo);
+        let mut report = interpreter.interpret(true).await?;
+        report
+            .set_testname(self.get_filename_for_report()?)
+            .set_output_directory(self.output_directory)
+            .write_report_default_styling()
     }
 
     fn process_input_file(&self) -> Result<String> {
@@ -196,7 +189,7 @@ impl ReplRunner {
 
             // Initializers
             script_buffer: String::new(),
-            interpreter: Interpreter::new(driver, vec![], is_demo, SuiReport::non_writeable()),
+            interpreter: Interpreter::new(driver, vec![], is_demo),
         })
     }
 

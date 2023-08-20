@@ -3,7 +3,7 @@ use schnauzer_ui::{
     interpreter::Interpreter,
     parser::Parser,
     scanner::Scanner,
-    test_report::SuiReport,
+    test_report::StandardReport,
     webdriver::{new_driver, WebDriverConfig},
 };
 use thirtyfour::WebDriver;
@@ -11,12 +11,10 @@ use thirtyfour::WebDriver;
 const TEST_FILE_NAME: &'static str = "testing_file.html";
 
 /// Equivalent to the libraries run function, but produces no test report.
-pub async fn run_test_script(code: String, driver: WebDriver) -> Result<SuiReport> {
+pub async fn run_test_script(code: String, driver: WebDriver) -> Result<StandardReport> {
     let tokens = Scanner::from_src(code).scan();
     let stmts = Parser::new().parse(tokens)?;
-    Interpreter::new(driver, stmts, false, SuiReport::non_writeable())
-        .interpret(true)
-        .await
+    Interpreter::new(driver, stmts, false).interpret(true).await
 }
 
 /// The purpose of this function is to take in a SchnauzerUI script
@@ -46,7 +44,7 @@ async fn _run_script_against(script: &str, target_html: &str, should_fail: bool)
         .await
         .expect("Error running script");
 
-    assert!(result.exited_early() == should_fail);
+    assert!(result.exited_early == should_fail);
 
     std::fs::remove_file(TEST_FILE_NAME).expect("Error deleting test file");
 }

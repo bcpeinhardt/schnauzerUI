@@ -455,7 +455,7 @@ impl Parser {
         };
         if current_token.token_type == tt {
             self.index += 1;
-            return Ok(current_token);
+            Ok(current_token)
         } else {
             bail!(current_token.error(format!("Expected \"{}\"", tt)))
         }

@@ -1,5 +1,5 @@
 # Changelog
 
-## Unreleased
+## v0.1.0
 
-- Init the changelog and proper versioning
+- Init changelog

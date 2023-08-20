@@ -19,74 +19,6 @@ pub struct ExecutedStmt {
 
 /// A report which gets passed through the Interpreter and is enriched
 /// with information about the test run.
-///
-/// It's worth discussing the weird pattern we have going on here. Rather
-/// than introducing a trait and making the Interpreter generic/passing around
-/// trait objects for this little report, we're using an enum to do a poor
-/// mans stategy pattern/dependency injection.
-/// This makes this relatively short piece of code less than idiomatic, but prevents
-/// adding the complexity of generics to the interpreter, a much larger piece of code.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum SuiReport {
-    Standard(StandardReport),
-    NonWriteable(NonWriteableReport),
-}
-
-impl SuiReport {
-    /// Create a new test report
-    pub fn new(name: String, output_dir: Utf8PathBuf) -> Self {
-        Self::Standard(StandardReport {
-            // Provided
-            name,
-            output_dir,
-
-            // Initializers
-            date_time: Utc::now().format("%a %b %e %T %Y").to_string(),
-            executed_stmts: vec![],
-            num_screenshots: 0,
-            exited_early: false,
-        })
-    }
-
-    /// Create a "non writeable" report. Used for testing and the REPL.
-    pub fn non_writeable() -> Self {
-        Self::NonWriteable(NonWriteableReport {
-            date_time: Utc::now().format("%a %b %e %T %Y").to_string(),
-            executed_stmts: vec![],
-            num_screenshots: 0,
-            exited_early: false,
-        })
-    }
-
-    // Delegation methods.
-    // These do the same thing regardless of the variant. Verbose, I know,
-    // but they keep us from introducing a generic into the Interpreter.
-
-    /// Add an executed statement to the report list.
-    pub fn add_statement(&mut self, es: ExecutedStmt) {
-        match self {
-            SuiReport::Standard(report) => report.executed_stmts.push(es),
-            SuiReport::NonWriteable(report) => report.executed_stmts.push(es),
-        }
-    }
-
-    /// Set whether the script was forced to execute early.
-    pub fn set_exited_early(&mut self, exited_early: bool) {
-        match self {
-            SuiReport::Standard(report) => report.exited_early = exited_early,
-            SuiReport::NonWriteable(report) => report.exited_early = exited_early,
-        }
-    }
-
-    /// Return whether the script was forced to execute early.
-    pub fn exited_early(&self) -> bool {
-        match self {
-            SuiReport::Standard(report) => report.exited_early,
-            SuiReport::NonWriteable(report) => report.exited_early,
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)] // automatically implement `TemplateOnce` trait
 pub struct StandardReport {
     /// The name of the script
@@ -109,8 +41,31 @@ pub struct StandardReport {
 }
 
 impl StandardReport {
+    pub fn new() -> Self {
+        StandardReport {
+            name: String::from("test"),
+            num_screenshots: 0,
+            output_dir: Utf8PathBuf::from("."),
+            date_time: Utc::now().to_string(),
+            executed_stmts: vec![],
+            exited_early: false,
+        }
+    }
+
+    /// Set the name of the test run
+    pub fn set_testname(&mut self, name: String) -> &mut Self {
+        self.name = name;
+        self
+    }
+
+    /// Set the directory the report should be created in.
+    pub fn set_output_directory(&mut self, output_directory: Utf8PathBuf) -> &mut Self {
+        self.output_dir = output_directory;
+        self
+    }
+
     /// Write all the expected ouput of a standard report
-    pub fn write_report(&mut self) -> Result<()> {
+    pub fn write_report_default_styling(&mut self) -> Result<()> {
         self.save_screenhots()?;
         self.write_html_output()?;
         self.write_json_output()
@@ -160,19 +115,10 @@ impl StandardReport {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)] // automatically implement `TemplateOnce` trait
-pub struct NonWriteableReport {
-    /// The number of screenshots taken during testing
-    pub num_screenshots: usize,
-
-    /// Date of test run
-    pub date_time: String,
-
-    /// The test reported
-    pub executed_stmts: Vec<ExecutedStmt>,
-
-    /// Whether or tnot the test was forced to exit early due to an error
-    pub exited_early: bool,
+impl Default for StandardReport {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, TemplateOnce)]
