@@ -35,3 +35,4 @@ pub mod test_report;
 pub mod webdriver;
 
 mod environment;
+mod js;

@@ -8,13 +8,13 @@ use thirtyfour::{components::SelectElement, prelude::*};
 
 use crate::{
     environment::Environment,
+    js::SIMULATE_DRAG_AND_DROP,
     parser::{Cmd, CmdParam, CmdStmt, IfStmt, SetVariableStmt, Stmt},
     test_report::{ExecutedStmt, StandardReport},
 };
 
 /// The interpreter is responsible for executing Schnauzer UI stmts. It translates Schnauzer UI
 /// statements into thirtyfour queries.
-#[derive(Debug)]
 pub struct Interpreter {
     /// Each interpreter has it's own browser window for executing scripts
     pub driver: WebDriver,
@@ -433,7 +433,7 @@ impl Interpreter {
             // To do a full recursive search, users can use
             // `under "<label-text>" locate "input" and type "some text"`
             for _ in 0..5 {
-                match self.get_curr_elem().await?.parent().await {
+                match self.get_curr_elem().await?.find(By::XPath("./..")).await {
                     Ok(parent) => {
                         let _ = self.set_curr_elem(parent, false).await?;
                         match self
@@ -478,11 +478,16 @@ impl Interpreter {
     /// Drag the currently located element to another (simulated with js)
     async fn drag_to(&mut self, cp: CmdParam) -> Result<()> {
         let current = self.get_curr_elem().await?.clone();
-        let _ = self.locate(cp, false).await?;
+        let target = self.locate(cp, false).await?;
         current
-            .js_drag_to(self.get_curr_elem().await?)
+            .handle
+            .execute(
+                SIMULATE_DRAG_AND_DROP,
+                vec![current.to_json()?, target.to_json()?],
+            )
             .await
-            .context("Error dragging element.")
+            .context("Error dragging element.")?;
+        Ok(())
     }
 
     /// Select an option from a select element.
@@ -547,7 +552,7 @@ impl Interpreter {
         };
         self.get_curr_elem()
             .await?
-            .send_keys("" + &key_to_press)
+            .send_keys("" + key_to_press)
             .await
             .context("Error pressing key. Make sure you have an element in focus first.")
     }
@@ -788,7 +793,7 @@ impl Interpreter {
 
             // If we don't find it under the under elem,
             // go up one
-            self.under_element = base_elem.parent().await.ok();
+            self.under_element = base_elem.find(By::XPath("./..")).await.ok();
             return self
                 .locate(CmdParam::String(locator), scroll_into_view)
                 .await;
@@ -938,7 +943,7 @@ impl Interpreter {
                 .query(By::XPath(&format!("//*[contains(., '{}')]", locator)))
                 .and_displayed()
                 .nowait()
-                .all_from_selector()
+                .all()
                 .await
             {
                 if let Some(elm) = containing_list.last() {
