@@ -1,33 +1,33 @@
 //! This module contains code for working with Schnauzer UI datatables.
-//! 
+//!
 //! In Schnauzer UI, a "datatable" is just a csv file with variable values for use in running
 //! a script. The first row of the csv, i.e. the headers, should contain the variables names
 //! you'd like to use in your script.
 //! Each record after that in the csv file represents a test run.
-//! 
+//!
 //! For example, the csv file
 //! ```csv
 //! username, password
 //! test@test.com, pa$$word
 //! test2@test,com, 123456
-//! ``` 
-//! 
+//! ```
+//!
 //! and the sui file
 //! ```sui
 //! url "https://mywebsite.com"
 //! locate "email" and type "<username>"
-//! locate "password" and type "<password>" 
+//! locate "password" and type "<password>"
 //! ```
-//! 
+//!
 //! when combined will become the script
 //! ```sui
 //! url "https://mywebsite.com"
 //! locate "email" and type "test@test.com"
-//! locate "password" and type "pa$$word" 
-//! 
+//! locate "password" and type "pa$$word"
+//!
 //! url "https://mywebsite.com"
 //! locate "email" and type "test2@test,com"
-//! locate "password" and type "123456" 
+//! locate "password" and type "123456"
 //! ```
 
 use anyhow::{bail, Context, Result};

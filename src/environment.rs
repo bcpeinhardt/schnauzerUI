@@ -9,7 +9,6 @@ use std::collections::HashMap;
 pub struct Environment(HashMap<String, String>);
 
 impl Environment {
-
     /// Creates a new environment
     pub fn new() -> Self {
         Self(HashMap::new())

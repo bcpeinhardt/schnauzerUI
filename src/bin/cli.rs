@@ -135,7 +135,7 @@ struct FileRunner {
 impl FileRunner {
     pub async fn run(self) -> Result<()> {
         let tokens = Scanner::from_src(self.process_input_file()?).scan();
-        let stmts = schnauzer_ui::parser::Parser::new().parse(tokens);
+        let stmts = schnauzer_ui::parser::Parser::new().parse(tokens)?;
         let interpreter = Interpreter::new(
             new_driver(self.driver_config).await?,
             stmts,
@@ -215,7 +215,7 @@ impl ReplRunner {
             let code = std::fs::read_to_string(start_path)
                 .with_context(|| "Error reading in start file code")?;
             let tokens = Scanner::from_src(code).scan();
-            let stmts = schnauzer_ui::parser::Parser::new().parse(tokens);
+            let stmts = schnauzer_ui::parser::Parser::new().parse(tokens)?;
             self.execute_starting_script(stmts).await?;
         }
 
@@ -231,13 +231,19 @@ impl ReplRunner {
                 break;
             }
             let tokens = Scanner::from_src(code).scan();
-            let stmts = schnauzer_ui::parser::Parser::new().parse(tokens);
-            for stmt in stmts.iter() {
-                if let Err(e) = self.interpreter.execute_stmt(stmt.clone()).await {
-                    eprintln!("The statement {} resulted in an error: {}", stmt, e);
+            match schnauzer_ui::parser::Parser::new().parse(tokens) {
+                Ok(stmts) => {
+                    for stmt in stmts.iter() {
+                        if let Err(e) = self.interpreter.execute_stmt(stmt.clone()).await {
+                            eprintln!("The statement {} resulted in an error: {}", stmt, e);
+                        }
+                        if Self::prompt_save_statement()? {
+                            self.push_statement_to_script_buffer(stmt);
+                        }
+                    }
                 }
-                if Self::prompt_save_statement()? {
-                    self.push_statement_to_script_buffer(stmt);
+                Err(e) => {
+                    eprintln!("{}", e)
                 }
             }
         }

@@ -13,7 +13,7 @@ const TEST_FILE_NAME: &'static str = "testing_file.html";
 /// Equivalent to the libraries run function, but produces no test report.
 pub async fn run_test_script(code: String, driver: WebDriver) -> Result<SuiReport> {
     let tokens = Scanner::from_src(code).scan();
-    let stmts = Parser::new().parse(tokens);
+    let stmts = Parser::new().parse(tokens)?;
     Interpreter::new(driver, stmts, false, SuiReport::non_writeable())
         .interpret(true)
         .await

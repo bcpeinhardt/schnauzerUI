@@ -1,4 +1,4 @@
-//! The interpreter is responsible for executing Schnauzer UI stmts. It translates Schnauzer UI 
+//! The interpreter is responsible for executing Schnauzer UI stmts. It translates Schnauzer UI
 //! statements into thirtyfour queries.
 
 use anyhow::{bail, Context, Result};
@@ -12,7 +12,7 @@ use crate::{
     test_report::{ExecutedStmt, SuiReport},
 };
 
-/// The interpreter is responsible for executing Schnauzer UI stmts. It translates Schnauzer UI 
+/// The interpreter is responsible for executing Schnauzer UI stmts. It translates Schnauzer UI
 /// statements into thirtyfour queries.
 #[derive(Debug)]
 pub struct Interpreter {
@@ -137,7 +137,8 @@ impl Interpreter {
 
         // Give the located element a purple border if in demo mode
         if self.is_demo {
-            let _ = self.driver
+            let _ = self
+                .driver
                 .execute(
                     r#"
             arguments[0].style.border = '5px solid purple';
@@ -386,11 +387,7 @@ impl Interpreter {
             }
 
             // Get the for attribute
-            let for_attr = self
-                .get_curr_elem()
-                .await?
-                .attr("for")
-                .await?;
+            let for_attr = self.get_curr_elem().await?.attr("for").await?;
 
             // Try to find the input element with the corresponding id or name attribute
             if let Some(for_attr) = for_attr {
@@ -658,11 +655,7 @@ impl Interpreter {
     /// Attempt to locate an element on the page, testing the locator in the following precedence
     /// (placeholder, preceding label, text, id, name, title, class, xpath)
     #[async_recursion]
-    async fn locate(
-        &mut self,
-        locator: CmdParam,
-        scroll_into_view: bool,
-    ) -> Result<WebElement> {
+    async fn locate(&mut self, locator: CmdParam, scroll_into_view: bool) -> Result<WebElement> {
         let locator = self.resolve(locator)?;
 
         // Store the locator in case we need to re-execute locate command (stale element, etc.)

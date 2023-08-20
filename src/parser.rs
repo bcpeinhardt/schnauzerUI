@@ -1,13 +1,14 @@
 //! The parser takes a list of Schnauzer UI tokens and produces an AST.
 
+use std::fmt::Display;
+
 use crate::scanner::{Token, TokenType};
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 
 /// Represents the different kinds of statements in SchnauzerUI
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
-
     /// A statement consisting of 1 or more commands.
     /// # Example
     /// ```sui
@@ -41,15 +42,15 @@ pub enum Stmt {
 
     /// Schnauzer UIs "error handling".
     /// Let's a script that encounter an error recover.
-    /// 
+    ///
     /// # Example
     /// ```sui
     /// # Encounter error because of typo
     /// locate "Loign"
-    /// 
+    ///
     /// # Some code that doesn't execute
     /// locate "Dashboard"
-    /// 
+    ///
     /// # Script skips ahead to here
     /// catch-error: screenshot
     /// ```
@@ -58,16 +59,16 @@ pub enum Stmt {
     /// Change SchnauzerUIs locate command from starting
     /// at the top of the document to starting at a particular element
     /// and radiating outward.
-    /// 
+    ///
     /// # Example
     /// ```sui
     /// under "Navigation" locate "Desired Text" and click
     /// ```
     Under(CmdParam, CmdStmt),
 
-    /// The same as `Under`, but starts the search at the currently 
+    /// The same as `Under`, but starts the search at the currently
     /// located element.
-    /// 
+    ///
     /// # Example
     /// ```sui
     /// under-active-element locate "Desired Text" and click
@@ -79,7 +80,7 @@ pub enum Stmt {
     SetHadErrorFieldToFalse,
 }
 
-impl std::fmt::Display for Stmt {
+impl Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Stmt::Cmd(cs) => write!(f, "{}", cs),
@@ -97,7 +98,6 @@ impl std::fmt::Display for Stmt {
 /// Set a variable with the given name to the given value
 #[derive(Debug, Clone, PartialEq)]
 pub struct SetVariableStmt {
-
     /// The name of the variable
     pub name: String,
 
@@ -105,7 +105,7 @@ pub struct SetVariableStmt {
     pub value: String,
 }
 
-impl std::fmt::Display for SetVariableStmt {
+impl Display for SetVariableStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "save {} as {}", self.name, self.value)
     }
@@ -114,7 +114,6 @@ impl std::fmt::Display for SetVariableStmt {
 /// Conditiionally execute a command statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct IfStmt {
-
     /// The command to execute as the predicate. If the command
     /// doesn't error, the then_branch executes
     pub condition: Cmd,
@@ -123,17 +122,17 @@ pub struct IfStmt {
     pub then_branch: CmdStmt,
 }
 
-impl std::fmt::Display for IfStmt {
+impl Display for IfStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "if {} then {}", self.condition, self.then_branch)
     }
 }
 
 /// A statement made of one or more commands
-/// Here's some example command statements 
+/// Here's some example command statements
 /// explaining the structure
 /// (the `Token` is the and keyword)
-/// 
+///
 /// ```sui
 /// locate "Submit"
 /// locate "Submit" and click
@@ -141,7 +140,6 @@ impl std::fmt::Display for IfStmt {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct CmdStmt {
-
     /// The leading command
     pub lhs: Cmd,
 
@@ -149,7 +147,7 @@ pub struct CmdStmt {
     pub rhs: Option<(Token, Box<CmdStmt>)>,
 }
 
-impl std::fmt::Display for CmdStmt {
+impl Display for CmdStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.rhs {
             Some((_, stmt)) => write!(f, "{} and {}", self.lhs, stmt),
@@ -220,7 +218,7 @@ pub enum Cmd {
     DismissAlert,
 }
 
-impl std::fmt::Display for Cmd {
+impl Display for Cmd {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Cmd::Locate(cp) => write!(f, "locate {}", cp),
@@ -246,7 +244,6 @@ impl std::fmt::Display for Cmd {
 /// Represents the kinds of parameters a SchnauzerUI command can have
 #[derive(Debug, Clone, PartialEq)]
 pub enum CmdParam {
-
     /// A string literal surrounded by double quotes
     String(String),
 
@@ -254,7 +251,7 @@ pub enum CmdParam {
     Variable(String),
 }
 
-impl std::fmt::Display for CmdParam {
+impl Display for CmdParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CmdParam::String(s) => write!(f, "\"{}\"", s),
@@ -268,9 +265,9 @@ impl TryFrom<Token> for CmdParam {
 
     fn try_from(value: Token) -> Result<Self, Self::Error> {
         match value.token_type {
-            TokenType::String(s) => Ok(Self::String(s)),
-            TokenType::Variable(v) => Ok(Self::Variable(v)),
-            _ => bail!("Invalid Input"),
+            TokenType::StringLiteral => Ok(Self::String(value.lexeme)),
+            TokenType::Variable => Ok(Self::Variable(value.lexeme)),
+            _ => bail!("A CmdParam can only be constructed from a StringLiteral or a Variable"),
         }
     }
 }
@@ -279,7 +276,6 @@ impl TryFrom<Token> for CmdParam {
 /// in an AST.
 #[derive(Debug)]
 pub struct Parser {
-
     /// A buffer for collecting the built up statements.
     stmts: Vec<Stmt>,
 
@@ -297,7 +293,6 @@ impl Default for Parser {
 }
 
 impl Parser {
-
     /// Creates a new parser.
     pub fn new() -> Self {
         Self {
@@ -308,27 +303,50 @@ impl Parser {
     }
 
     /// Transform a list of tokens into a list of statements.
-    pub fn parse(&mut self, tokens: Vec<Token>) -> Vec<Stmt> {
+    pub fn parse(&mut self, tokens: Vec<Token>) -> Result<Vec<Stmt>> {
         // A token list passed to the parse should always end in an Eof token.
         // The unwrap is safe because we checked the len > 0.
         assert!(!tokens.is_empty() && tokens.last().unwrap().token_type == TokenType::Eof);
+        let mut errors = vec![];
 
+        // Every Schnauzer UI statement is a single line.
         for line in tokens.split(|t| t.token_type == TokenType::Eol) {
             self.curr_line = line.to_vec();
-            if self.current_token().unwrap().token_type == TokenType::Eof {
+
+            // Break if we've reached the EOF token
+            if let Some(Token {
+                token_type: TokenType::Eof,
+                ..
+            }) = self.current_token()
+            {
                 break;
             }
+
+            // Parse the statement and keep track of an error if it produced one
             match self.parse_stmt() {
                 Ok(stmt) => self.stmts.push(stmt),
-                Err(e) => {
-                    eprintln!("{}", e)
-                }
+                Err(e) => errors.push(e),
             }
+
+            // Reset the index (used by the `current_token` and the advance_on functions)
             self.index = 0;
         }
+
+        // Reset the parser in case we want to reuse it.
         let stmts = self.stmts.clone();
         self.stmts.clear();
-        stmts
+
+        // Return the successfully parsed statements or error
+        // with the list of parse errors
+        if errors.is_empty() {
+            Ok(stmts)
+        } else {
+            bail!(errors
+                .into_iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"))
+        }
     }
 
     /// Parse a single Schnauzer UI statement
@@ -342,39 +360,16 @@ impl Parser {
         } else if self.advance_on(TokenType::UnderActiveElement).is_ok() {
             let cs = self.parse_cmd_stmt()?;
             Ok(Stmt::UnderActiveElement(cs))
-        } else if let Ok(Token {
-            token_type: TokenType::Comment(s),
-            ..
-        }) = self.advance_on(TokenType::Comment("n/a".to_owned()))
-        {
-            Ok(Stmt::Comment(s))
+        } else if let Ok(token) = self.advance_on(TokenType::Comment) {
+            Ok(Stmt::Comment(token.lexeme))
         } else if self.advance_on(TokenType::CatchError).is_ok() {
             let stmt = self.parse_cmd_stmt()?;
             Ok(Stmt::CatchErr(stmt))
         } else if self.advance_on(TokenType::Save).is_ok() {
-            let value = self
-                .advance_on(TokenType::String("n/a".to_owned()))?;
-            let _as_token = self
-                .advance_on(TokenType::As)?;
-            let variable_name = self
-                .advance_on(TokenType::Variable("n/a".to_owned()))?;
-
-            match (variable_name, value) {
-                (
-                    Token {
-                        token_type: TokenType::Variable(variable_name),
-                        ..
-                    },
-                    Token {
-                        token_type: TokenType::String(value),
-                        ..
-                    },
-                ) => Ok(Stmt::SetVariable(SetVariableStmt {
-                    name: variable_name,
-                    value,
-                })),
-                _ => bail!("Error"),
-            }
+            let value = self.advance_on(TokenType::StringLiteral)?.lexeme;
+            let _as_token = self.advance_on(TokenType::As)?;
+            let name = self.advance_on(TokenType::Variable)?.lexeme;
+            Ok(Stmt::SetVariable(SetVariableStmt { name, value }))
         } else {
             self.parse_cmd_stmt().map(Stmt::Cmd)
         }
@@ -383,8 +378,7 @@ impl Parser {
     /// Parse an if statement
     fn parse_if_stmt(&mut self) -> Result<IfStmt> {
         let condition = self.parse_cmd()?;
-        let _then_token = self
-            .advance_on(TokenType::Then)?;
+        let _then_token = self.advance_on(TokenType::Then)?;
         let then_branch = self.parse_cmd_stmt()?;
         Ok(IfStmt {
             condition,
@@ -409,11 +403,8 @@ impl Parser {
     /// Parse a `CmdParam`, the type representing what can be passed to a SchnauzerUI command
     /// as an argument.
     fn parse_cmd_param(&mut self) -> Result<CmdParam> {
-        self.advance_on_any_of(vec![
-            TokenType::String("n/a".to_owned()),
-            TokenType::Variable("n/a".to_owned()),
-        ])?
-        .try_into()
+        self.advance_on_any_of(vec![TokenType::StringLiteral, TokenType::Variable])?
+            .try_into()
     }
 
     /// Parse a single SchnauzerUI command.
@@ -425,16 +416,8 @@ impl Parser {
         } else if self.advance_on(TokenType::Type).is_ok() {
             self.parse_cmd_param().map(Cmd::Type)
         } else if self.advance_on(TokenType::ReadTo).is_ok() {
-            let var = self
-                .advance_on(TokenType::Variable("n/a".to_owned()))?;
-
-            match var {
-                Token {
-                    token_type: TokenType::Variable(v),
-                    ..
-                } => Ok(Cmd::ReadTo(v)),
-                _ => bail!("Expected variable"),
-            }
+            let var = self.advance_on(TokenType::Variable)?;
+            Ok(Cmd::ReadTo(var.lexeme))
         } else if self.advance_on(TokenType::Url).is_ok() {
             self.parse_cmd_param().map(Cmd::Url)
         } else if self.advance_on(TokenType::Press).is_ok() {
@@ -448,7 +431,7 @@ impl Parser {
         } else if self.advance_on(TokenType::Upload).is_ok() {
             self.parse_cmd_param().map(Cmd::Upload)
         } else {
-            let token = self.advance_on_any();
+            let token = self.advance_on_any()?;
             match token.token_type {
                 TokenType::Click => Ok(Cmd::Click),
                 TokenType::Refresh => Ok(Cmd::Refresh),
@@ -456,7 +439,10 @@ impl Parser {
                 TokenType::Screenshot => Ok(Cmd::Screenshot),
                 TokenType::AcceptAlert => Ok(Cmd::AcceptAlert),
                 TokenType::DismissAlert => Ok(Cmd::DismissAlert),
-                _ => bail!("Expected Command"),
+                _ => match self.prev_token() {
+                    Some(prev_token) => bail!(prev_token.error("Expected a command")),
+                    None => bail!("Expected a command"),
+                },
             }
         }
     }
@@ -464,16 +450,14 @@ impl Parser {
     /// If the current token is the type of token you're looking for,
     /// consume it. Otherwise, return nothing and do not increment.
     fn advance_on(&mut self, tt: TokenType) -> Result<Token> {
-        if let Some(token) = self.current_token() {
-            if token.token_type == tt {
-                self.index += 1;
-                return Ok(token);
-            } else {
-                bail!(token.error(format!("Expected `{}` token", tt)))
-            }
+        let Some(current_token) = self.current_token() else {
+            bail!("No more tokens on this line")
+        };
+        if current_token.token_type == tt {
+            self.index += 1;
+            return Ok(current_token);
         } else {
-            // I'm not sure what to do here. Think I need to rethink these helpers
-            bail!("Fix this later")
+            bail!(current_token.error(format!("Expected \"{}\"", tt)))
         }
     }
 
@@ -485,22 +469,22 @@ impl Parser {
             }
         }
 
-        // Todo: Move this out to a display impl
-        let length = tts.len();
-        let tts = tts.into_iter().enumerate().fold(String::new(), |mut buf, (i, token_type) | {
-            buf.push_str(&token_type.to_string());
-            if i != length {
-                buf.push_str(", ");
-            }
-            buf
-        });
+        // Create a formatted string for the error message.
+        let tts = tts
+            .into_iter()
+            .map(|tt| tt.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
         bail!(format!("Expected one of the following tokens: {}", tts))
     }
 
     /// Advance on any token.
-    fn advance_on_any(&mut self) -> Token {
+    fn advance_on_any(&mut self) -> Result<Token> {
+        let Some(token) = self.current_token() else {
+            bail!("Expected another token on this line.")
+        };
         self.index += 1;
-        self.curr_line.get(self.index - 1).cloned().unwrap()
+        Ok(token)
     }
 
     /// Return a copy of the current token for inspection
@@ -508,9 +492,11 @@ impl Parser {
         self.curr_line.get(self.index).cloned()
     }
 
-    /// Return the previous token if there is one
-    /// # Panics
-    fn previous_token(&self) -> Option<Token> {
-        self.curr_line.get(self.index - 1).cloned()
+    fn prev_token(&self) -> Option<Token> {
+        if self.index > 1 {
+            self.curr_line.get(self.index - 1).cloned()
+        } else {
+            None
+        }
     }
 }

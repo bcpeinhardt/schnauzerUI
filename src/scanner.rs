@@ -1,7 +1,8 @@
+use std::fmt::Display;
+
 /// Represents all the types of Schnauzer UI tokens.
 #[derive(Debug, Clone)]
 pub enum TokenType {
-    // Commands
     Locate,
     LocateNoScroll,
     Type,
@@ -21,45 +22,21 @@ pub enum TokenType {
     DismissAlert,
     Under,
     UnderActiveElement,
-
-    // Literals (the associated string is the string literal)
-    String(String),
-
-    // Combinators
+    StringLiteral,
     If,
     Then,
     And,
-
-    // Variable (the associated string is the variable name)
-    Variable(String),
+    Variable,
     Save,
     As,
-
-    // Comment token
-    Comment(String),
-
-    // EOF and EOL
+    Comment,
     Eof,
     Eol,
 }
 
-impl PartialEq for TokenType {
-    fn eq(&self, other: &Self) -> bool {
-        std::mem::discriminant(self) == std::mem::discriminant(other)
-    }
-}
-
-/// Represents a Schnauzer UI Token
-#[derive(Debug, Clone, PartialEq)]
-pub struct Token {
-    /// The type of the Token
-    pub token_type: TokenType,
-
-    /// The line the token was found on (for error reporting)
-    pub line: usize,
-}
-
-impl std::fmt::Display for TokenType {
+/// We are implementing display for `TokenType`, but this is just for printing error messages.
+/// The token_type doesn't have enough information to display say, a string literal.
+impl Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let lexeme = match self {
             TokenType::Locate => "locate",
@@ -70,17 +47,17 @@ impl std::fmt::Display for TokenType {
             TokenType::Screenshot => "screenshot",
             TokenType::CatchError => "catch-error:",
             TokenType::ReadTo => "read-to",
-            TokenType::String(s) => s,
+            TokenType::StringLiteral => "quoted text",
             TokenType::If => "if",
             TokenType::Then => "then",
             TokenType::And => "and",
-            TokenType::Variable(v) => v,
+            TokenType::Variable => "a variable",
             TokenType::Eof => "eof",
             TokenType::Eol => "eol",
             TokenType::Save => "save",
             TokenType::As => "as",
             TokenType::Url => "url",
-            TokenType::Comment(s) => s,
+            TokenType::Comment => "a comment",
             TokenType::Press => "press",
             TokenType::Chill => "chill",
             TokenType::LocateNoScroll => "locate-no-scroll",
@@ -97,11 +74,37 @@ impl std::fmt::Display for TokenType {
     }
 }
 
+impl PartialEq for TokenType {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
+/// Represents a Schnauzer UI Token
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    /// The type of the Token
+    pub token_type: TokenType,
+
+    /// The line the token was found on (for error reporting)
+    pub line: usize,
+
+    /// The String representation on the token
+    pub lexeme: String,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.lexeme)
+    }
+}
+
 impl Token {
+    /// Formatted error string for producing a parse error at a given token.
     pub fn error(&self, msg: impl std::fmt::Display) -> String {
         format!(
-            "[Line {}]: Error at {}: {}",
-            self.line, self.token_type, msg
+            "[Line {}]: Error at token \"{}\": {}",
+            self.line, self.lexeme, msg
         )
     }
 }
@@ -159,8 +162,8 @@ impl Scanner {
             // Comments
             if stmt.trim().starts_with('#') {
                 self.tokens
-                    .push(self.token(TokenType::Comment(stmt.to_owned())));
-                self.tokens.push(self.token(TokenType::Eol));
+                    .push(self.token(TokenType::Comment, stmt.to_owned()));
+                self.tokens.push(self.token(TokenType::Eol, "EOL".into()));
                 continue;
             }
 
@@ -172,11 +175,11 @@ impl Scanner {
             }
 
             // End of line token
-            self.tokens.push(self.token(TokenType::Eol));
+            self.tokens.push(self.token(TokenType::Eol, "EOL".into()));
         }
 
         // Add an end of file token
-        self.tokens.push(self.token(TokenType::Eof));
+        self.tokens.push(self.token(TokenType::Eof, "EOF".into()));
         self.tokens.clone()
     }
 
@@ -187,31 +190,43 @@ impl Scanner {
     pub fn resolve_token(&mut self, lexeme: &str) -> Option<Token> {
         match lexeme {
             // Commands
-            "locate" if !self.in_quotes => Some(self.token(TokenType::Locate)),
-            "type" if !self.in_quotes => Some(self.token(TokenType::Type)),
-            "click" if !self.in_quotes => Some(self.token(TokenType::Click)),
-            "refresh" if !self.in_quotes => Some(self.token(TokenType::Refresh)),
-            "try-again" if !self.in_quotes => Some(self.token(TokenType::TryAgain)),
-            "screenshot" if !self.in_quotes => Some(self.token(TokenType::Screenshot)),
-            "catch-error:" if !self.in_quotes => Some(self.token(TokenType::CatchError)),
-            "if" if !self.in_quotes => Some(self.token(TokenType::If)),
-            "then" if !self.in_quotes => Some(self.token(TokenType::Then)),
-            "and" if !self.in_quotes => Some(self.token(TokenType::And)),
-            "read-to" if !self.in_quotes => Some(self.token(TokenType::ReadTo)),
-            "save" if !self.in_quotes => Some(self.token(TokenType::Save)),
-            "as" if !self.in_quotes => Some(self.token(TokenType::As)),
-            "url" if !self.in_quotes => Some(self.token(TokenType::Url)),
-            "press" if !self.in_quotes => Some(self.token(TokenType::Press)),
-            "chill" if !self.in_quotes => Some(self.token(TokenType::Chill)),
-            "locate-no-scroll" if !self.in_quotes => Some(self.token(TokenType::LocateNoScroll)),
-            "select" if !self.in_quotes => Some(self.token(TokenType::Select)),
-            "drag-to" if !self.in_quotes => Some(self.token(TokenType::DragTo)),
-            "upload" if !self.in_quotes => Some(self.token(TokenType::Upload)),
-            "accept-alert" if !self.in_quotes => Some(self.token(TokenType::AcceptAlert)),
-            "dismiss-alert" if !self.in_quotes => Some(self.token(TokenType::DismissAlert)),
-            "under" if !self.in_quotes => Some(self.token(TokenType::Under)),
+            "locate" if !self.in_quotes => Some(self.token(TokenType::Locate, "locate".into())),
+            "type" if !self.in_quotes => Some(self.token(TokenType::Type, "type".into())),
+            "click" if !self.in_quotes => Some(self.token(TokenType::Click, "click".into())),
+            "refresh" if !self.in_quotes => Some(self.token(TokenType::Refresh, "refresh".into())),
+            "try-again" if !self.in_quotes => {
+                Some(self.token(TokenType::TryAgain, "try-again".into()))
+            }
+            "screenshot" if !self.in_quotes => {
+                Some(self.token(TokenType::Screenshot, "screenshot".into()))
+            }
+            "catch-error:" if !self.in_quotes => {
+                Some(self.token(TokenType::CatchError, "catch-error".into()))
+            }
+            "if" if !self.in_quotes => Some(self.token(TokenType::If, "if".into())),
+            "then" if !self.in_quotes => Some(self.token(TokenType::Then, "then".into())),
+            "and" if !self.in_quotes => Some(self.token(TokenType::And, "and".into())),
+            "read-to" if !self.in_quotes => Some(self.token(TokenType::ReadTo, "read-to".into())),
+            "save" if !self.in_quotes => Some(self.token(TokenType::Save, "save".into())),
+            "as" if !self.in_quotes => Some(self.token(TokenType::As, "as".into())),
+            "url" if !self.in_quotes => Some(self.token(TokenType::Url, "url".into())),
+            "press" if !self.in_quotes => Some(self.token(TokenType::Press, "press".into())),
+            "chill" if !self.in_quotes => Some(self.token(TokenType::Chill, "chill".into())),
+            "locate-no-scroll" if !self.in_quotes => {
+                Some(self.token(TokenType::LocateNoScroll, "locate-no-scroll".into()))
+            }
+            "select" if !self.in_quotes => Some(self.token(TokenType::Select, "select".into())),
+            "drag-to" if !self.in_quotes => Some(self.token(TokenType::DragTo, "drag-to".into())),
+            "upload" if !self.in_quotes => Some(self.token(TokenType::Upload, "upload".into())),
+            "accept-alert" if !self.in_quotes => {
+                Some(self.token(TokenType::AcceptAlert, "accept-alert".into()))
+            }
+            "dismiss-alert" if !self.in_quotes => {
+                Some(self.token(TokenType::DismissAlert, "dismiss-alert".into()))
+            }
+            "under" if !self.in_quotes => Some(self.token(TokenType::Under, "under".into())),
             "under-active-element" if !self.in_quotes => {
-                Some(self.token(TokenType::UnderActiveElement))
+                Some(self.token(TokenType::UnderActiveElement, "under-active-element".into()))
             }
             // If we get an entire string literal, stript the quotes and construct the token
             word if word.starts_with('\"')
@@ -227,7 +242,7 @@ impl Scanner {
                     .unwrap()
                     .to_owned();
 
-                Some(self.token(TokenType::String(word)))
+                Some(self.token(TokenType::StringLiteral, word))
             }
 
             // If we get the first part of a string, switch to string literal building mode
@@ -261,7 +276,7 @@ impl Scanner {
                 // Clear the buffer and return the string literal
                 let res = self.string_literal_buffer.clone();
                 self.string_literal_buffer.clear();
-                Some(self.token(TokenType::String(res)))
+                Some(self.token(TokenType::StringLiteral, res))
             }
 
             // If we get part of the middle of the string literal
@@ -272,14 +287,15 @@ impl Scanner {
                 self.string_literal_buffer.push(' ');
                 None
             }
-            word => Some(self.token(TokenType::Variable(word.to_owned()))),
+            word => Some(self.token(TokenType::Variable, word.into())),
         }
     }
 
-    fn token(&self, tt: TokenType) -> Token {
+    fn token(&self, tt: TokenType, lexeme: String) -> Token {
         Token {
             token_type: tt,
             line: self.line,
+            lexeme,
         }
     }
 }
