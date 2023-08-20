@@ -13,15 +13,13 @@ locate "Search" and type "cats" and press "Enter"
 ```
 
 This is the only code necessary to write in order to run the test in a live
-browser and generate a test report. You can place this code in a file called `myTest.sui`
-and run the test with `sui -f ./myTest.sui`. It will launch chrome, perform 
-the search, and produce an html test report as well as json output. 
+browser and generate a test report.
 
 ## About this document
 
 We are subscribing to the Divio documentation system, so this document is composed of four sections:
 1. **Tutorials**: Focused on learning SchnauzerUI. Hands on and closely guided.
-2. **How-To Guides**: Focused on solving specific problems with SchnauzerUI. We hope to accumulate a lot of these, so don't be afraid to submit a Github issue asking for help, it helps us as much as it does you :)
+2. **How-To Guides**: Focused on solving specific problems with SchnauzerUI. We hope to accumulate a lot of these, so don't be afraid to submit a Github issue asking for help, it helps us as much as it does you.
 3. **Reference**: A complete list of all available functionality of SchnauzerUI.
 4. **Explanation**: Covers how SchanzuerUI works under the hood and why it was designed that way. Great place to start if you're considering forking or contributing to SchnauzerUI.
 
