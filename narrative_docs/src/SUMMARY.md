@@ -12,3 +12,5 @@
 - [Statements and Commands List](./reference/statements_and_commands.md)
 
 # Explanation
+
+- [What Schnauzer UI Knows](./explanation/what_schnauzer_ui_knows.md)

@@ -370,6 +370,7 @@ impl Interpreter {
             .tag_name()
             .await
             .unwrap_or("ignore_error".to_owned());
+
         if tag_name == "label" || tag_name == "span" {
             // Label contains input or textarea
             if let Ok(input) = self

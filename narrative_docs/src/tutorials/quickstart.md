@@ -2,6 +2,8 @@
 
 ## Installation
 
+**Warning: The below install process is quite technical and involves using your computer's terminal.**
+
 To install Schnauzer UI, you'll need the [rust toolchain](https://www.rust-lang.org/tools/install) installed.
 Then run `cargo install schnauzer_ui`. After installing, type `sui --help` and take a quick look
 at the options.
@@ -16,6 +18,8 @@ If you've never worked with any of these before:
  and run them.
  - If that all sounds like too much, and you're okay using Firefox, you can build geckodriver from source with
  `cargo install geckodriver` and then run it.
+
+ ## Running the REPL for the first time
 
 To start a REPL, first make sure your webdriver process is running.
 Then make yourself a folder called `sui_tutorial` (or whatever you like) and open a terminal there. 
@@ -32,9 +36,13 @@ Congrats! You're up an running with Schnauzer UI. Feel free to try commands from
 When you're ready to quit, type `exit` as a command and hit enter. You will be asked if you want to save your script. 
 Simply type `yes` and hit enter.
 
+## Running a saved script file
+
 There should now be a Schnauzer UI script saved as a file ending in `.sui` in your current directory. 
 `cat` the file or open it up in your favorite text editor to take a look inside. You should see your saved commands
-there. This is your brand new Schnauzer UI test script! To run the script, type `sui -f <path-to-the-file>` along 
+there. This is your brand new Schnauzer UI test script! 
+
+To run the script, type `sui -f <path-to-the-file>` along 
 with the port and browser arguments if they are not the default. The browser should launch again and run the entire script, then generate some test results. There should now also be an HTML file, a JSON file, and a screenshots folder
 with any screenshots taken during the test run. 
 - The HTML file is the standard formatting of the test report. You can open it in a browser to see the report.
