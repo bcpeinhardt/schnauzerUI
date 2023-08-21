@@ -4,7 +4,7 @@ use schnauzer_ui::{
     parser::Parser,
     scanner::Scanner,
     test_report::StandardReport,
-    webdriver::{new_driver, WebDriverConfig},
+    webdriver::{new_driver, SupportedBrowser, WebDriverConfig},
 };
 use thirtyfour::WebDriver;
 
@@ -36,9 +36,13 @@ async fn _run_script_against(script: &str, target_html: &str, should_fail: bool)
     test_script.push_str(script);
 
     // Create a test driver
-    let driver = new_driver(WebDriverConfig::default())
-        .await
-        .expect("Could not create test driver");
+    let driver = new_driver(WebDriverConfig {
+        port: 4444,
+        headless: true,
+        browser: SupportedBrowser::Firefox,
+    })
+    .await
+    .expect("Could not create test driver");
 
     let result = run_test_script(test_script, driver)
         .await

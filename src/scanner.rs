@@ -286,6 +286,8 @@ impl Scanner {
                 self.string_literal_buffer.push(' ');
                 None
             }
+
+            // If it's not a string literal or a keyword, it's a variable.
             word => Some(self.token(TokenType::Variable, word.into())),
         }
     }

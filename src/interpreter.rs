@@ -361,16 +361,16 @@ impl Interpreter {
     // A label/input pair with the matching for/id attributes respectively,
     // or a label/input pair where the label element contains the input element or directly precedes it,
     // will be swapped.
-    async fn resolve_label(&mut self) -> Result<()> {
+    // Note: Making a change to include span in this, as people tend to use those too.
+    async fn resolve_label_or_span(&mut self) -> Result<()> {
         // Label with correct for attribute
-        if self
+        let tag_name = self
             .get_curr_elem()
             .await?
             .tag_name()
             .await
-            .unwrap_or("ignore_error".to_owned())
-            == "label"
-        {
+            .unwrap_or("ignore_error".to_owned());
+        if tag_name == "label" || tag_name == "span" {
             // Label contains input or textarea
             if let Ok(input) = self
                 .get_curr_elem()
@@ -494,7 +494,7 @@ impl Interpreter {
     async fn select(&mut self, cp: CmdParam) -> Result<()> {
         let option_text = self.resolve(cp)?;
 
-        self.resolve_label().await?;
+        self.resolve_label_or_span().await?;
 
         // Sometimes, a Select element's only visible text on the page
         // is it's default option. Many users may try to locate
@@ -597,7 +597,7 @@ impl Interpreter {
 
     /// Tries to click on the currently located web element.
     async fn click(&mut self) -> Result<()> {
-        self.resolve_label().await?;
+        self.resolve_label_or_span().await?;
 
         // We need to wait for the element to be clickable by default,
         // but also account for weird htmls structures. So, we'll
@@ -618,7 +618,7 @@ impl Interpreter {
     async fn type_into_elem(&mut self, cmd_param: CmdParam) -> Result<()> {
         let txt = self.resolve(cmd_param)?;
 
-        self.resolve_label().await?;
+        self.resolve_label_or_span().await?;
 
         // Instead of typing into the located element,
         // we'll click the located element, then type
