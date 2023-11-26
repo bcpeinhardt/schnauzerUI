@@ -1,5 +1,7 @@
 # Schnauzer UI
 
+![schnauzer_ui](https://raw.githubusercontent.com/bcpeinhardt/schnauzerUI/main/schnauzer-codes.jpg)
+
 Schnauzer UI is a DSL for performing browser automation.
 Rather than focusing on large automated test suites, Schnauzer UI helps
 you write small, easy to understand test scripts.
